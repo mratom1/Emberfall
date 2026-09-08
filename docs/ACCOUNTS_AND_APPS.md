@@ -60,7 +60,7 @@ Run `node scripts/prepare-app-assets.mjs windows`, then:
 dotnet publish apps/windows/Emberfall.csproj -c Release -r win-x64 --self-contained true -o release/windows
 ```
 
-Copy the entire published folder and open `Emberfall.exe`. The app bundles .NET; Microsoft WebView2 Runtime must be installed. Its official download page opens if the runtime is missing. The build is not Authenticode signed; use your own code-signing certificate for public distribution. F11 toggles fullscreen. Settings → Server & app changes servers.
+Copy the entire published folder and open `Emberfall.exe`. The app bundles .NET; Microsoft WebView2 Runtime must be installed. Its official download page opens if the runtime is missing. The build is not Authenticode signed; use your own code-signing certificate for public distribution. Use the fullscreen button beside the village. Settings → Server & app changes servers.
 
 ## GitHub and your server
 

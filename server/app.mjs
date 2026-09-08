@@ -94,7 +94,7 @@ export async function createApp(config={}){
    if(p==='/api/payments/webhook'&&req.method==='POST'){let event;try{event=verifyWebhook(await body(req),req.headers['stripe-signature'],settings.webhookSecret);}catch{fail('Invalid payment signature.',400);}return json(res,200,tx(()=>fulfill(event)));}
    if(p.startsWith('/api/')){
     const ip=req.socket.remoteAddress||'unknown',rateIdentity=p.startsWith('/api/auth')||p==='/api/session'?ip:(sessionOf(req)?.player_id||ip),key=rateIdentity+':'+(p.startsWith('/api/auth')?'auth':p==='/api/session'?'session':'api');let bucket=rate.get(key);if(!bucket||now-bucket.start>60000){bucket={start:now,count:0};rate.set(key,bucket);}if(++bucket.count>(p.startsWith('/api/auth')?15:p==='/api/session'?25:700))fail('Too many requests. Try again shortly.',429);
-    if(req.method==='POST')originCheck(req);if(p.startsWith('/api/auth/')&&!authTransportAllowed(req,settings.secure))fail('Account access requires HTTPS. Configure your HTTPS domain first.',403);
+    if(req.method==='POST')originCheck(req);if((p.startsWith('/api/auth/')||p==='/api/oauth/poll')&&!authTransportAllowed(req,settings.secure))fail('Account access requires HTTPS. Configure your HTTPS domain first.',403);
     if(p==='/api/config')return json(res,200,{server:true,payments:paymentEnabled,paymentTest:settings.stripeKey.startsWith('sk_test_'),packs:M.GEM_PACKS,oauth:oauth.publicConfig()});
     if(/^\/api\/auth\/oauth\/(google|facebook)\/callback$/.test(p)&&req.method==='GET'){const ok=await oauth.callback(p.split('/')[4],url.searchParams);res.writeHead(ok?200:400,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Referrer-Policy':'no-referrer'});return res.end(callbackHTML(ok));}
     if(p==='/api/session'&&req.method==='POST'){

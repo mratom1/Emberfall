@@ -70,7 +70,7 @@ export function createOAuth({db, settings, config = {}, tx, getUser, newSession,
     if(typeof token !== 'string' || token.length > 16000) fail('Invalid Facebook identity.', 401);
     const checked = await fetchJSON(fields(base + '/debug_token', {input_token: token}), {headers: {Authorization: 'Bearer ' + providers.facebook.id + '|' + providers.facebook.key}});
     const d = checked.data, now = Date.now()/1000;
-    if(!d?.is_valid || String(d.app_id) !== providers.facebook.id || !subject(d.user_id) || !Number.isFinite(d.expires_at) || d.expires_at <= now || (d.data_access_expires_at && d.data_access_expires_at <= now)) fail('Facebook identity verification failed.', 401);
+    if(d?.is_valid !== true || String(d.app_id) !== providers.facebook.id || !subject(d.user_id) || !Number.isFinite(d.expires_at) || d.expires_at <= now || (d.data_access_expires_at && d.data_access_expires_at <= now)) fail('Facebook identity verification failed.', 401);
     const proof = createHmac('sha256', providers.facebook.key).update(token).digest('hex');
     const profile = await fetchJSON(fields(base + '/me', {fields: 'id,name', appsecret_proof: proof}), {headers: {Authorization: 'Bearer ' + token}});
     if(profile.id !== d.user_id) fail('Facebook identity verification failed.', 401);
@@ -119,6 +119,7 @@ export function createOAuth({db, settings, config = {}, tx, getUser, newSession,
       const saved = db.prepare('SELECT player_id FROM auth_identities WHERE provider=? AND subject=?').get(row.provider, identity.subject);
       if(row.mode === 'link' && saved && saved.player_id !== user.id) fail('That sign-in belongs to another village. Its villages cannot be merged.', 409);
       if(db.prepare('SELECT id FROM battles WHERE player_id=? AND settled=0').get(user.id)) fail('Return home before completing sign-in.', 409);
+      if(!saved && row.mode === 'signin' && (user.password_hash || user.providers?.length)) fail('No village is saved to that account. Choose Connect to link it, or sign out to start a new village.',409);
       const target = saved?.player_id || user.id;
       if(!saved) {
         db.prepare('INSERT INTO auth_identities VALUES(?,?,?,?)').run(row.provider, identity.subject, target, Date.now());

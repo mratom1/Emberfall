@@ -37,7 +37,7 @@ internal sealed class KingdomWindow : Form {
         panel.Controls.Add(input);var actions=new FlowLayoutPanel(){AutoSize=true,FlowDirection=FlowDirection.LeftToRight};
         actions.Controls.Add(Button("Connect to server",()=>{var address=SecureOrigin(input.Text);if(address==null||address==Offline){MessageBox.Show("Enter your HTTPS server address without a path.","Server address");return;}File.WriteAllText(Path.Combine(profile,"server.txt"),address);_=LoadGame(address);}));
         actions.Controls.Add(Button("Play on this device",()=>_=LoadGame(Offline)));panel.Controls.Add(actions);
-        panel.Controls.Add(Label("Device play stays in this app. Server accounts and purchases require a connected server.\nVersion 5.0.0 · F11 toggles fullscreen",12,Color.DarkSeaGreen));Controls.Add(panel);
+        panel.Controls.Add(Label("Device play stays in this app. Server accounts and purchases require a connected server.\nVersion 5.0.0 · Use the game fullscreen button",12,Color.DarkSeaGreen));Controls.Add(panel);
     }
     async Task LoadGame(string address) {
         origin=address; Controls.Clear(); web=new WebView2(){Dock=DockStyle.Fill,DefaultBackgroundColor=ink};Controls.Add(web);
@@ -54,7 +54,6 @@ internal sealed class KingdomWindow : Form {
                 try {using var doc=JsonDocument.Parse(e.WebMessageAsJson);var root=doc.RootElement;var action=root.GetProperty("action").GetString();if(action=="chooseServer")BeginInvoke((Action)ShowChooser);else if(action=="openExternal")External(root.GetProperty("url").GetString()??"");}catch(JsonException){}catch(KeyNotFoundException){}
             };
             core.ContainsFullScreenElementChanged+=(_,_)=>{FormBorderStyle=core.ContainsFullScreenElement?FormBorderStyle.None:FormBorderStyle.Sizable;if(core.ContainsFullScreenElement)WindowState=FormWindowState.Maximized;};
-            web.CoreWebView2Controller.AcceleratorKeyPressed+=(_,e)=>{if(e.VirtualKey==0x7A && e.KeyEventKind==CoreWebView2KeyEventKind.KeyDown){e.Handled=true;BeginInvoke((Action)(()=>{FormBorderStyle=FormBorderStyle==FormBorderStyle.None?FormBorderStyle.Sizable:FormBorderStyle.None;if(FormBorderStyle==FormBorderStyle.None)WindowState=FormWindowState.Maximized;}));}};
             core.NavigationCompleted+=(_,e)=>{if(!e.IsSuccess){MessageBox.Show("The kingdom could not load. Check the server address and internet connection.","Kingdom unavailable");ShowChooser();}};
             web.Source=new Uri(origin+"/");
         } catch(WebView2RuntimeNotFoundException) {

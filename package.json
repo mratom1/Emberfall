@@ -1,0 +1,14 @@
+{
+  "name": "emberfall-kingdoms",
+  "version": "4.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server/app.mjs",
+    "test": "node tests/gameplay.mjs && node tests/server.mjs && node tests/expansion.mjs && node tests/security.mjs && node tests/quality.mjs && node tests/deployment.mjs",
+    "backup": "node --env-file-if-exists=.env scripts/backup.mjs"
+  }
+}

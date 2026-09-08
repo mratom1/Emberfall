@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="emberfall-runtime" content="auto">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#172723">
+  <meta name="description" content="Build your village, raise an army, and conquer the wilds. Play Emberfall, an original 3D strategy game.">
+  <title>Emberfall — Kingdoms at War</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect rx='16' width='64' height='64' fill='%23182721'/%3E%3Cpath d='M16 14h32v27L32 54 16 41z' fill='%23dbaa56'/%3E%3Cpath d='m37 19-16 18h12l-6 12 18-20H33z' fill='%23593226'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/assets/lucide.min.js" defer></script>
+  <script type="module" src="/game.js"></script>
+</head>
+<body>
+  <main id="app" aria-label="Emberfall strategy game">
+    <div id="world" aria-label="Interactive village. Drag to pan, scroll or pinch to zoom, tap a building to manage it."></div>
+    <div class="vignette" aria-hidden="true"></div>
+    <header class="topbar">
+      <button class="player wood" id="player-button" aria-label="Village guide">
+        <span class="level-shield" id="player-level">1</span>
+        <span class="player-copy"><strong>Emberfall</strong><span><i data-lucide="shield"></i> <span id="rank">Wandering clan</span></span></span>
+      </button>
+      <div class="resource-row">
+        <div class="resource gold"><span class="resource-icon"><i data-lucide="coins"></i></span><div><span class="resource-label">GOLD</span><strong id="gold-value">2,400</strong><span class="resource-fill"><span id="gold-fill"></span></span></div></div>
+        <div class="resource mana"><span class="resource-icon"><i data-lucide="droplets"></i></span><div><span class="resource-label">ELIXIR</span><strong id="elixir-value">1,800</strong><span class="resource-fill"><span id="elixir-fill"></span></span></div></div>
+        <button class="resource gems" id="gems-button" aria-label="Open gem shop"><span class="resource-icon"><i data-lucide="gem"></i></span><div><span class="resource-label">GEMS</span><strong id="gems-value">100</strong></div><i data-lucide="plus"></i></button>
+        <div class="resource dark"><span class="resource-icon"><i data-lucide="fuel"></i></span><div><span class="resource-label">DARK</span><strong id="dark-value">200</strong></div></div>
+        <div class="resource trophy"><span class="resource-icon"><i data-lucide="trophy"></i></span><div><span class="resource-label">GLORY</span><strong id="glory-value">0</strong></div></div>
+      </div>
+      <button class="square wood settings-trigger" id="settings-button" aria-label="Settings"><i data-lucide="settings"></i></button>
+    </header>
+
+    <aside class="left-rail" id="village-rail">
+      <div class="chapter"><span class="eyebrow">YOUR HOMELAND</span><h1>Willowmere</h1><span class="chapter-rule"></span></div>
+      <button class="quest-card wood" id="quest-button"><span class="quest-icon"><i data-lucide="scroll-text"></i></span><span><small>THE PATH TO GREATNESS</small><strong id="quest-title">A growing village</strong><span class="quest-progress"><span id="quest-progress"></span></span><span class="quest-sub" id="quest-sub">Build your first gold mine</span></span><i data-lucide="chevron-right"></i></button>
+      <nav class="feature-nav"><button class="square wood" id="heroes-button" aria-label="Heroes"><i data-lucide="crown"></i><span>Heroes</span></button><button class="square wood" id="research-button" aria-label="Research"><i data-lucide="microscope"></i></button><button class="square wood" id="spells-button" aria-label="Spells"><i data-lucide="wand-sparkles"></i></button><button class="square wood" id="clans-button" aria-label="Clans and players"><i data-lucide="shield-half"></i></button><button class="square wood" id="worlds-button" aria-label="Worlds and clan wars"><i data-lucide="globe"></i><span>Worlds</span></button><button class="square wood" id="season-button" aria-label="Season rewards"><i data-lucide="medal"></i></button></nav><button class="btn return-village" id="return-village" hidden><i data-lucide="house"></i> Home village</button>
+      <button class="btn btn-small work-trigger" id="work-button"><i data-lucide="list-checks"></i> Work queue</button><div class="village-info"><span><i data-lucide="hammer"></i><b id="builders">2/2</b> builders</span><span><i data-lucide="users"></i><b id="army-count">14</b> troops</span></div>
+    </aside>
+
+    <div class="right-controls">
+      <button class="square wood" id="fullscreen-button" aria-label="Play fullscreen"><i data-lucide="maximize"></i></button>
+      <button class="square wood" id="sound-button" aria-label="Enable sound" title="Sound"><i data-lucide="volume-x"></i></button>
+      <span class="control-divider"></span>
+      <button class="square wood" id="zoom-in" aria-label="Zoom in"><i data-lucide="plus"></i></button>
+      <button class="square wood" id="zoom-out" aria-label="Zoom out"><i data-lucide="minus"></i></button>
+      <button class="square wood" id="recenter" aria-label="Center village"><i data-lucide="focus"></i></button>
+    </div>
+
+    <div id="building-label" class="building-label" hidden></div>
+    <section id="building-panel" class="wood building-panel" hidden aria-live="polite"></section>
+    <div id="placement-bar" class="wood placement-bar" hidden><i data-lucide="move"></i><span id="placement-text">Move the building, then confirm</span><button class="btn btn-small" id="rotate-placement" aria-label="Rotate building"><i data-lucide="rotate-cw"></i></button><button class="btn btn-gold btn-small" id="confirm-placement"><i data-lucide="check"></i> Build here</button><button class="btn btn-small" id="cancel-placement">Cancel</button></div>
+
+    <footer class="bottom-hud" id="village-hud">
+      <div class="brand-mark"><span>EMBERFALL</span><small>K I N G D O M S &nbsp; A T &nbsp; W A R</small></div>
+      <div class="village-actions">
+        <button class="action-btn collect-action" id="collect-button"><span class="action-icon"><i data-lucide="hand-coins"></i></span><span><strong>Collect</strong><small id="collect-amount">Resources ready</small></span></button>
+        <button class="action-btn wood" id="build-button"><span class="action-icon"><i data-lucide="hammer"></i></span><span><strong>Build</strong><small>Grow your village</small></span></button>
+        <button class="action-btn wood" id="train-button"><span class="action-icon"><i data-lucide="shield-plus"></i></span><span><strong>Army</strong><small id="army-caption">Train your troops</small></span></button>
+      </div>
+      <button class="attack-button" id="attack-button"><i data-lucide="swords"></i><span><strong>Battle</strong><small>THE WILDS AWAIT</small></span><i data-lucide="chevron-right"></i></button>
+    </footer>
+
+    <section class="battle-top wood" id="battle-top" hidden>
+      <div><small>ENEMY STRONGHOLD</small><strong id="enemy-name">Bramble Outpost</strong></div><div class="battle-clock"><i data-lucide="timer"></i><strong id="battle-time">2:00</strong></div><div class="battle-destruction"><strong id="destruction">0%</strong><span id="battle-stars">☆☆☆</span></div>
+    </section>
+    <footer id="battle-hud" class="battle-hud" hidden><button class="btn retreat-btn" id="retreat-button"><i data-lucide="flag"></i> End battle</button><div class="deploy-wrapper"><div class="deploy-instruction" id="deploy-instruction">Select a troop, then tap outside the red border to deploy</div><div class="deploy-cards" id="deploy-cards"></div></div><button class="spell-button" id="spell-button"><i data-lucide="zap"></i><strong>Thunder</strong><small id="spell-count">2 spells</small></button></footer>
+
+    <button id="connection-status" class="connection-status" type="button" role="status" aria-live="polite" hidden></button><div class="toast-stack" id="toasts" role="status" aria-live="polite"></div>
+    <div class="loading" id="loading"><div class="loading-crest"><i data-lucide="castle"></i></div><strong>EMBERFALL</strong><span>Preparing your kingdom…</span><div class="loading-track"><span></span></div></div>
+    <div id="rotate-screen" class="rotate-screen"><i data-lucide="smartphone"></i><h2>ဘေးတိုက်လှည့်ပြီး ကစားပါ</h2><p>Emberfall ကို landscape မြင်ကွင်းနဲ့ ကစားနိုင်ပါတယ်။ ဖုန်းကို ဘေးတိုက်လှည့်ပြီး စတင်ပါ။</p><button class="btn btn-gold" id="landscape-start">Fullscreen နဲ့ ကစားမယ်</button><small>ဖုန်းရဲ့ Auto-rotate ကို ဖွင့်ထားပါ။</small></div>
+    <dialog id="modal" class="game-modal"><div id="modal-content"></div></dialog>
+  </main>
+</body>
+</html>

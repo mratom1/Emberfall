@@ -1,0 +1,12 @@
+.DS_Store
+node_modules/
+*.zip
+*.tar.gz
+.env
+data/
+backups/
+test-results/
+.deploy/
+releases/
+*.pem
+*.key

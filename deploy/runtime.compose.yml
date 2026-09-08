@@ -1,0 +1,49 @@
+name: ${COMPOSE_PROJECT_NAME:-emberfall}
+services:
+  game:
+    image: ${GAME_IMAGE:?Choose a tested game image}
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    mem_limit: 512m
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    env_file: .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8080
+      DATA_DIR: /app/data
+      NODE_ENV: production
+      COOKIE_SECURE: "true"
+      PUBLIC_URL: "https://${DOMAIN:?Set your HTTPS domain}"
+    ports:
+      - "127.0.0.1:${PORT:-8080}:8080"
+    volumes:
+      - emberfall_data:/app/data
+    healthcheck:
+      interval: 5s
+      timeout: 4s
+      retries: 12
+      start_period: 10s
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:8080/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+  caddy:
+    profiles: [managed-tls]
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ['80:80', '443:443', '443:443/udp']
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      game:
+        condition: service_healthy
+volumes:
+  emberfall_data:
+  caddy_data:
+  caddy_config:

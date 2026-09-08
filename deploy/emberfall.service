@@ -1,0 +1,21 @@
+[Unit]
+Description=Emberfall game server
+After=network.target
+
+[Service]
+Type=simple
+User=emberfall
+Group=emberfall
+WorkingDirectory=/opt/emberfall
+EnvironmentFile=/opt/emberfall/.env
+ExecStart=/usr/bin/node /opt/emberfall/server/app.mjs
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/emberfall/data
+
+[Install]
+WantedBy=multi-user.target

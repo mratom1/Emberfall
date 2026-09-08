@@ -1,0 +1,34 @@
+name: Deploy to VPS
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: emberfall-production
+  cancel-in-progress: false
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/ci.yml
+  deploy:
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build and package the exact commit
+        run: |
+          docker build --pull -t "emberfall:$GITHUB_SHA" .
+          docker save "emberfall:$GITHUB_SHA" | gzip > "$RUNNER_TEMP/emberfall-image.tar.gz"
+      - name: Transfer and deploy over verified SSH
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          IMAGE_ARCHIVE: ${{ runner.temp }}/emberfall-image.tar.gz
+        run: bash scripts/deploy-over-ssh.sh

@@ -1,3 +1,4 @@
+import {createOAuth, callbackHTML} from './oauth.mjs';
 import {startBackups} from './backups.mjs';
 import http from 'node:http';
 import {DatabaseSync} from 'node:sqlite';
@@ -15,7 +16,7 @@ import {verifyWebhook,createCheckout,packById} from './payments.mjs';
 const here=path.dirname(fileURLToPath(import.meta.url)),root=path.resolve(here,'../dist');
 function fail(message,status=400){throw Object.assign(new Error(message),{status});}
 const hash=s=>createHash('sha256').update(s).digest('hex');
-const safeUser=u=>({id:u.id,name:u.name,registered:!!u.password_hash,clanId:u.clan_id});
+const safeUser=u=>({id:u.id,name:u.name,registered:!!(u.password_hash||u.providers?.length),hasPassword:!!u.password_hash,providers:u.providers||[],clanId:u.clan_id});
 export async function createApp(config={}){
  const port=Number(config.port??process.env.PORT??8080),dataDir=config.dataDir||process.env.DATA_DIR||path.resolve(here,'../data');await mkdir(dataDir,{recursive:true});
  const db=new DatabaseSync(path.join(dataDir,'emberfall.sqlite'));db.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;');
@@ -33,9 +34,10 @@ export async function createApp(config={}){
  if(process.env.NODE_ENV==='production'&&(!settings.origin.startsWith('https://')||!settings.secure))throw new Error('Production requires PUBLIC_URL=https://your-domain and COOKIE_SECURE=true.');
  const paymentEnabled=!!(settings.stripeKey&&settings.webhookSecret&&settings.origin.startsWith('https://'));
  const rate=new Map();const tx=fn=>{db.exec('BEGIN IMMEDIATE');try{const r=fn();db.exec('COMMIT');return r;}catch(e){db.exec('ROLLBACK');throw e;}};
- const getUser=id=>db.prepare('SELECT * FROM players WHERE id=?').get(id);
+ const getUser=id=>{const u=db.prepare('SELECT * FROM players WHERE id=?').get(id);if(u)u.providers=db.prepare('SELECT provider FROM auth_identities WHERE player_id=? ORDER BY provider').all(id).map(r=>r.provider);return u;};
  function stateOf(u,now=Date.now()){u=getUser(u.id)||u;const s=JSON.parse(u.state);M.advance(s,now);return s;}
  function persist(u,s,now=Date.now()){db.prepare('UPDATE players SET state=?,glory=?,updated_at=? WHERE id=?').run(JSON.stringify(s),s.glory,now,u.id);}
+ const oauth=createOAuth({db,settings,config:config.oauth,tx,getUser,newSession,snapshot});
  const frontiers=createFrontiers({db,M,getUser,stateOf,persist,fail});
  function newSession(id,res){db.prepare('DELETE FROM sessions WHERE player_id=? AND token_hash NOT IN (SELECT token_hash FROM sessions WHERE player_id=? ORDER BY expires_at DESC LIMIT 9)').run(id,id);const token=randomBytes(32).toString('hex'),csrf=randomBytes(24).toString('hex'),expires=Date.now()+30*86400000;db.prepare('INSERT INTO sessions VALUES(?,?,?,?)').run(hash(token),id,csrf,expires);res.setHeader('Set-Cookie',`emberfall_session=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000${settings.secure?'; Secure':''}`);return {csrf,player_id:id};}
  function sessionOf(req){const token=/(?:^|;\s*)emberfall_session=([a-f0-9]{64})(?:;|$)/.exec(req.headers.cookie||'')?.[1];if(!token)return null;return db.prepare('SELECT * FROM sessions WHERE token_hash=? AND expires_at>?').get(hash(token),Date.now());}
@@ -88,12 +90,13 @@ export async function createApp(config={}){
   setSecurityHeaders(res,settings.secure);
   try{
    const url=new URL(req.url,'http://localhost'),p=url.pathname,now=Date.now();
-   if(p==='/api/health')return json(res,200,{ok:true,version:'4.0.0'});
+   if(p==='/api/health')return json(res,200,{ok:true,version:'5.0.0'});
    if(p==='/api/payments/webhook'&&req.method==='POST'){let event;try{event=verifyWebhook(await body(req),req.headers['stripe-signature'],settings.webhookSecret);}catch{fail('Invalid payment signature.',400);}return json(res,200,tx(()=>fulfill(event)));}
    if(p.startsWith('/api/')){
     const ip=req.socket.remoteAddress||'unknown',rateIdentity=p.startsWith('/api/auth')||p==='/api/session'?ip:(sessionOf(req)?.player_id||ip),key=rateIdentity+':'+(p.startsWith('/api/auth')?'auth':p==='/api/session'?'session':'api');let bucket=rate.get(key);if(!bucket||now-bucket.start>60000){bucket={start:now,count:0};rate.set(key,bucket);}if(++bucket.count>(p.startsWith('/api/auth')?15:p==='/api/session'?25:700))fail('Too many requests. Try again shortly.',429);
     if(req.method==='POST')originCheck(req);if(p.startsWith('/api/auth/')&&!authTransportAllowed(req,settings.secure))fail('Account access requires HTTPS. Configure your HTTPS domain first.',403);
-    if(p==='/api/config')return json(res,200,{server:true,payments:paymentEnabled,paymentTest:settings.stripeKey.startsWith('sk_test_'),packs:M.GEM_PACKS});
+    if(p==='/api/config')return json(res,200,{server:true,payments:paymentEnabled,paymentTest:settings.stripeKey.startsWith('sk_test_'),packs:M.GEM_PACKS,oauth:oauth.publicConfig()});
+    if(/^\/api\/auth\/oauth\/(google|facebook)\/callback$/.test(p)&&req.method==='GET'){const ok=await oauth.callback(p.split('/')[4],url.searchParams);res.writeHead(ok?200:400,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Referrer-Policy':'no-referrer'});return res.end(callbackHTML(ok));}
     if(p==='/api/session'&&req.method==='POST'){
      await jsonBody(req);
      let session=sessionOf(req);if(!session){const id=randomUUID(),s=M.initialState(now);db.prepare('INSERT INTO players(id,name,state,updated_at) VALUES(?,?,?,?)').run(id,'Chief '+randomInt(1000,9999),JSON.stringify(s),now);session=newSession(id,res);}return json(res,200,{...tx(()=>snapshot(getUser(session.player_id),now)),csrf:session.csrf});
@@ -103,9 +106,11 @@ export async function createApp(config={}){
      const upgraded=user.password_hash.startsWith('scrypt$')?null:await passwordHash(a.password);const response=tx(()=>{if(getUser(user.id)?.password_hash!==user.password_hash)fail('Invalid username or password.',401);const old=sessionOf(req);if(old)db.prepare('DELETE FROM sessions WHERE token_hash=?').run(old.token_hash);if(upgraded)db.prepare('UPDATE players SET password_hash=? WHERE id=?').run(upgraded,user.id);const fresh=newSession(user.id,res);return {...snapshot(getUser(user.id),now),csrf:fresh.csrf};});return json(res,200,response);
     }
     const {user,session}=authenticate(req);
+    if(p==='/api/auth/oauth/start'&&req.method==='POST')return json(res,200,oauth.start(user,session,await jsonBody(req)));
+    if(p==='/api/oauth/poll'&&req.method==='POST')return json(res,200,oauth.poll(user,session,await jsonBody(req),res));
     if(p==='/api/state'&&req.method==='GET')return json(res,200,tx(()=>snapshot(user,now)));
     if(p==='/api/auth/register'&&req.method==='POST'){
-     const a=await jsonBody(req);if(user.password_hash)fail('This village already has an account.');if(typeof a.username!=='string'||!/^[A-Za-z0-9_]{3,24}$/.test(a.username)||typeof a.password!=='string'||a.password.length<10||a.password.length>128)fail('Use a 3–24 character username and a password of at least 10 characters.');if(db.prepare('SELECT id FROM players WHERE login=?').get(a.username.toLowerCase()))fail('That username is already taken.');const encoded=await passwordHash(a.password);const result=tx(()=>{if(getUser(user.id).password_hash)fail('This village already has an account.',409);if(db.prepare('SELECT id FROM players WHERE login=?').get(a.username.toLowerCase()))fail('That username is already taken.',409);db.prepare('UPDATE players SET name=?,login=?,password_hash=? WHERE id=?').run(a.username,a.username.toLowerCase(),encoded,user.id);db.prepare('DELETE FROM sessions WHERE player_id=?').run(user.id);const fresh=newSession(user.id,res);return {user:safeUser(getUser(user.id)),csrf:fresh.csrf};});return json(res,200,result);
+     const a=await jsonBody(req);if(safeUser(user).registered)fail('This village already has an account.');if(typeof a.username!=='string'||!/^[A-Za-z0-9_]{3,24}$/.test(a.username)||typeof a.password!=='string'||a.password.length<10||a.password.length>128)fail('Use a 3–24 character username and a password of at least 10 characters.');if(db.prepare('SELECT id FROM players WHERE login=?').get(a.username.toLowerCase()))fail('That username is already taken.');const encoded=await passwordHash(a.password);const result=tx(()=>{if(safeUser(getUser(user.id)).registered)fail('This village already has an account.',409);if(db.prepare('SELECT id FROM players WHERE login=?').get(a.username.toLowerCase()))fail('That username is already taken.',409);db.prepare('UPDATE players SET name=?,login=?,password_hash=? WHERE id=?').run(a.username,a.username.toLowerCase(),encoded,user.id);db.prepare('DELETE FROM sessions WHERE player_id=?').run(user.id);const fresh=newSession(user.id,res);return {user:safeUser(getUser(user.id)),csrf:fresh.csrf};});return json(res,200,result);
     }
     if(p==='/api/auth/logout'&&req.method==='POST'){db.prepare('DELETE FROM sessions WHERE token_hash=?').run(session.token_hash);res.setHeader('Set-Cookie',`emberfall_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${settings.secure?'; Secure':''}`);return json(res,200,{ok:true});}
     if(p==='/api/auth/password'&&req.method==='POST'){const a=await jsonBody(req);if(!user.password_hash||typeof a.currentPassword!=='string'||a.currentPassword.length>128||!validPassword(a.newPassword))fail('Use your current password and a new password of 10–128 characters.');if(!await passwordMatches(a.currentPassword,user.password_hash))fail('Current password is incorrect.',403);const encoded=await passwordHash(a.newPassword);const result=tx(()=>{if(getUser(user.id).password_hash!==user.password_hash)fail('Your password changed. Sign in again.',409);db.prepare('UPDATE players SET password_hash=? WHERE id=?').run(encoded,user.id);db.prepare('DELETE FROM sessions WHERE player_id=?').run(user.id);const fresh=newSession(user.id,res);return {ok:true,user:safeUser(getUser(user.id)),csrf:fresh.csrf};});return json(res,200,result);}
@@ -132,7 +137,7 @@ export async function createApp(config={}){
       else fail('Unknown clan action.');return {user:safeUser(getUser(user.id)),ok:true};});return json(res,200,result);
     }
     if(p==='/api/payments/checkout'&&req.method==='POST'){
-     if(!paymentEnabled)fail('Gem purchases are not available yet.',503);if(!user.password_hash)fail('Create an account to keep your purchased gems.',403);const a=await jsonBody(req),pack=packById(a.pack);if(!pack)fail('Unknown gem pack.');if(db.prepare("SELECT COUNT(*) AS n FROM orders WHERE player_id=? AND created_at>? AND status='pending'").get(user.id,now-60000).n>=3)fail('Please finish your pending checkout.',429);
+     if(!paymentEnabled)fail('Gem purchases are not available yet.',503);if(!safeUser(user).registered)fail('Create an account to keep your purchased gems.',403);const a=await jsonBody(req),pack=packById(a.pack);if(!pack)fail('Unknown gem pack.');if(db.prepare("SELECT COUNT(*) AS n FROM orders WHERE player_id=? AND created_at>? AND status='pending'").get(user.id,now-60000).n>=3)fail('Please finish your pending checkout.',429);
      const orderId=randomUUID();db.prepare('INSERT INTO orders(id,player_id,pack,gems,cents,created_at) VALUES(?,?,?,?,?,?)').run(orderId,user.id,pack.id,pack.gems,pack.cents,now);const checkout=await createCheckout({key:settings.stripeKey,origin:settings.origin,userId:user.id,orderId,pack,fetcher:settings.fetcher});db.prepare('UPDATE orders SET stripe_id=? WHERE id=?').run(checkout.id,orderId);return json(res,200,{url:checkout.url,orderId});
     }
     fail('Endpoint not found.',404);
@@ -143,7 +148,7 @@ export async function createApp(config={}){
  });
  server.requestTimeout=15000;server.headersTimeout=10000;server.keepAliveTimeout=5000;server.maxRequestsPerSocket=1000;
  const battleTick=setInterval(()=>{const now=Date.now();for(const row of db.prepare('SELECT * FROM battles WHERE settled=0 LIMIT 100').all()){try{tx(()=>{const u=getUser(row.player_id),s=stateOf(u,now);advanceBattle(row,u,s,now);persist(u,s,now);});}catch(e){console.error('Battle update failed:',e.message);}}},2500);battleTick.unref();
- const cleanup=setInterval(()=>{const cutoff=Date.now();db.prepare('DELETE FROM sessions WHERE expires_at<?').run(cutoff);db.prepare('DELETE FROM commands WHERE created_at<?').run(cutoff-86400000);for(const [k,v]of rate)if(cutoff-v.start>120000)rate.delete(k);},60000);cleanup.unref();
+ const cleanup=setInterval(()=>{const cutoff=Date.now();oauth.clean();db.prepare('DELETE FROM sessions WHERE expires_at<?').run(cutoff);db.prepare('DELETE FROM commands WHERE created_at<?').run(cutoff-86400000);for(const [k,v]of rate)if(cutoff-v.start>120000)rate.delete(k);},60000);cleanup.unref();
  const backups=config.backups?startBackups(path.resolve(dataDir),config.backupOptions):null;
  return {server,db,settings,backups,listen:()=>new Promise(resolve=>server.listen(port,config.host||process.env.HOST||'0.0.0.0',resolve)),close:()=>new Promise(resolve=>{clearInterval(cleanup);clearInterval(battleTick);server.close(async()=>{await backups?.close();db.close();resolve();});})};
 }

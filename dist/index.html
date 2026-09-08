@@ -12,6 +12,7 @@
   <title>Emberfall — Kingdoms at War</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect rx='16' width='64' height='64' fill='%23182721'/%3E%3Cpath d='M16 14h32v27L32 54 16 41z' fill='%23dbaa56'/%3E%3Cpath d='m37 19-16 18h12l-6 12 18-20H33z' fill='%23593226'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/theme.css">
   <script src="/assets/lucide.min.js" defer></script>
   <script type="module" src="/game.js"></script>
 </head>
@@ -20,7 +21,7 @@
     <div id="world" aria-label="Interactive village. Drag to pan, scroll or pinch to zoom, tap a building to manage it."></div>
     <div class="vignette" aria-hidden="true"></div>
     <header class="topbar">
-      <button class="player wood" id="player-button" aria-label="Village guide">
+      <button class="player wood" id="player-button" aria-label="Village account">
         <span class="level-shield" id="player-level">1</span>
         <span class="player-copy"><strong>Emberfall</strong><span><i data-lucide="shield"></i> <span id="rank">Wandering clan</span></span></span>
       </button>
@@ -60,6 +61,7 @@
         <button class="action-btn collect-action" id="collect-button"><span class="action-icon"><i data-lucide="hand-coins"></i></span><span><strong>Collect</strong><small id="collect-amount">Resources ready</small></span></button>
         <button class="action-btn wood" id="build-button"><span class="action-icon"><i data-lucide="hammer"></i></span><span><strong>Build</strong><small>Grow your village</small></span></button>
         <button class="action-btn wood" id="train-button"><span class="action-icon"><i data-lucide="shield-plus"></i></span><span><strong>Army</strong><small id="army-caption">Train your troops</small></span></button>
+        <button class="action-btn wood kingdom-trigger" id="kingdom-button"><span class="action-icon"><i data-lucide="layout-grid"></i></span><span><strong>Kingdom</strong><small>Heroes & worlds</small></span></button>
       </div>
       <button class="attack-button" id="attack-button"><i data-lucide="swords"></i><span><strong>Battle</strong><small>THE WILDS AWAIT</small></span><i data-lucide="chevron-right"></i></button>
     </footer>
@@ -72,6 +74,7 @@
     <button id="connection-status" class="connection-status" type="button" role="status" aria-live="polite" hidden></button><div class="toast-stack" id="toasts" role="status" aria-live="polite"></div>
     <div class="loading" id="loading"><div class="loading-crest"><i data-lucide="castle"></i></div><strong>EMBERFALL</strong><span>Preparing your kingdom…</span><div class="loading-track"><span></span></div></div>
     <div id="rotate-screen" class="rotate-screen"><i data-lucide="smartphone"></i><h2>ဘေးတိုက်လှည့်ပြီး ကစားပါ</h2><p>Emberfall ကို landscape မြင်ကွင်းနဲ့ ကစားနိုင်ပါတယ်။ ဖုန်းကို ဘေးတိုက်လှည့်ပြီး စတင်ပါ။</p><button class="btn btn-gold" id="landscape-start">Fullscreen နဲ့ ကစားမယ်</button><small>ဖုန်းရဲ့ Auto-rotate ကို ဖွင့်ထားပါ။</small></div>
+    <dialog id="kingdom-menu" class="game-modal kingdom-menu"><div class="modal-header"><div><small>EMBERFALL</small><h2>Your kingdom</h2></div><button id="close-kingdom" class="close-btn" aria-label="Close kingdom menu"><i data-lucide="x"></i></button></div><div class="kingdom-menu-body"></div></dialog>
     <dialog id="modal" class="game-modal"><div id="modal-content"></div></dialog>
   </main>
 </body>

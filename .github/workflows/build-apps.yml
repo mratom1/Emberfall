@@ -1,0 +1,71 @@
+name: Build native apps
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with: {node-version: '24', package-manager-cache: false}
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
+        with: {gradle-version: '8.13'}
+      - run: node scripts/prepare-app-assets.mjs android
+      - name: Compile release APK and app bundle
+        working-directory: apps/android
+        run: gradle --no-daemon :app:assembleRelease :app:bundleRelease
+      - name: Package unsigned builds and signing tool
+        run: |
+          mkdir -p release/android
+          cp apps/android/app/build/outputs/apk/release/*-unsigned.apk release/android/Emberfall-5.0.0-unsigned.apk
+          cp apps/android/app/build/outputs/bundle/release/*.aab release/android/Emberfall-5.0.0-unsigned.aab
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" release/android/apksigner.jar
+          printf '%s\n' "$GITHUB_SHA" > release/android/SOURCE_COMMIT.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with: {name: Emberfall-Android-Unsigned, path: release/android, retention-days: 30, if-no-files-found: error}
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with: {node-version: '24', package-manager-cache: false}
+      - run: node scripts/prepare-app-assets.mjs windows
+      - name: Publish self-contained Windows app
+        run: dotnet publish apps/windows/Emberfall.csproj -c Release -r win-x64 --self-contained true -o release/windows
+      - name: Record source version
+        run: Set-Content -Path release/windows/SOURCE_COMMIT.txt -Value $env:GITHUB_SHA
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with: {name: Emberfall-Windows-x64, path: release/windows, retention-days: 30, if-no-files-found: error}
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with: {node-version: '24', package-manager-cache: false}
+      - run: node scripts/prepare-app-assets.mjs ios
+      - name: Compile for iPhone simulator
+        run: xcodebuild -project apps/ios/Emberfall.xcodeproj -scheme Emberfall -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath release/ios-simulator CODE_SIGNING_ALLOWED=NO build
+      - name: Compile device archive without Apple signing
+        run: xcodebuild -project apps/ios/Emberfall.xcodeproj -scheme Emberfall -configuration Release -destination 'generic/platform=iOS' -archivePath release/Emberfall.xcarchive CODE_SIGNING_ALLOWED=NO archive
+      - name: Package compiled iOS products
+        run: |
+          mkdir -p release/ios/Payload
+          cp -R release/Emberfall.xcarchive/Products/Applications/Emberfall.app release/ios/Payload/
+          cd release/ios
+          zip -qr Emberfall-5.0.0-unsigned.ipa Payload
+          rm -rf Payload
+          ditto -c -k --sequesterRsrc --keepParent ../ios-simulator/Build/Products/Release-iphonesimulator/Emberfall.app Emberfall-Simulator.zip
+          printf '%s\n' "$GITHUB_SHA" > SOURCE_COMMIT.txt
+          printf '%s\n' 'Device IPA is unsigned. Select your Apple signing team in the included Xcode project to install on an iPhone. Simulator app does not require signing.' > READ-ME.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with: {name: Emberfall-iOS-Builds, path: release/ios, retention-days: 30, if-no-files-found: error}

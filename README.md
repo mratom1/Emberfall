@@ -1,5 +1,7 @@
 # Emberfall — Kingdoms at War 4.0
 
+Version 5.0.0 adds Google/Facebook accounts, six illustrated heroes, High/Ultra HD graphics, a redesigned landscape UI, and native Android, iOS and Windows projects. See [Accounts and apps](docs/ACCOUNTS_AND_APPS.md) for setup, build commands and signing requirements.
+
 A complete frontend and self-hosted Node.js server for an original 3D village strategy game. Burmese deployment guide: [README_MM.md](README_MM.md).
 
 GitHub-to-VPS guide: [GITHUB_DEPLOY_MM.md](GITHUB_DEPLOY_MM.md). Release changes: [CHANGELOG.md](CHANGELOG.md).
@@ -84,7 +86,7 @@ Point a domain to your server, copy .env.example to .env if needed, set `DOMAIN=
 docker compose -f compose.https.yml up -d --build
 ```
 
-This uses Caddy, enables secure cookies, and keeps the game port internal. Ports 80/603 must be available. With an existing HTTPS proxy, use standard Compose with `BIND_ADDRESS=127.0.0.1`, `PUBLIC_URL=https://YOUR_DOMAIN`, `COOKIE_SECURE=true`, and `NODE_ENV=production`. See deploy/nginx.conf.example.
+This uses Caddy, enables secure cookies, and keeps the game port internal. Ports 80/443 must be available. With an existing HTTPS proxy, use standard Compose with `BIND_ADDRESS=127.0.0.1`, `PUBLIC_URL=https://YOUR_DOMAIN`, `COOKIE_SECURE=true`, and `NODE_ENV=production`. See deploy/nginx.conf.example.
 
 ## Payments
 

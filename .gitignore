@@ -10,3 +10,17 @@ test-results/
 releases/
 *.pem
 *.key
+
+# Native build output and private signing material
+apps/**/build/
+apps/**/.gradle/
+apps/**/bin/
+apps/**/obj/
+apps/**/Game/
+apps/android/app/src/main/assets/game/
+apps/android/local.properties
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
+*.xcuserstate

@@ -16,6 +16,7 @@ export class Connection {
   setStatus(status) { this.status = status; this.onStatus(status); }
   async request(path, {method = 'GET', data} = {}) {
     let response, result;
+    const owner = this.user?.id;
     try {
       response = await this.fetcher('/api' + path, {method, credentials: 'same-origin', headers: {...(data ? {'Content-Type': 'application/json'} : {}), ...(this.csrf ? {'X-CSRF-Token': this.csrf} : {})}, ...(data ? {body: JSON.stringify(data)} : {}), signal: AbortSignal.timeout(18000)});
       result = await response.json();
@@ -24,6 +25,7 @@ export class Connection {
       throw Object.assign(new Error('Connection lost. Your server village is safe. Reconnect and retry.'), {retryable: true});
     }
     if (!response.ok) throw Object.assign(new Error(result.error || 'Request failed.'), {status: response.status, retryable: [502, 503, 504].includes(response.status)});
+    if (owner !== this.user?.id && !['/session','/auth/login','/oauth/poll'].includes(path)) throw Object.assign(new Error('Your account changed. Refresh the village.'),{status:409});
     if (result.csrf) this.csrf = result.csrf;
     if (result.user) this.user = result.user;
     if (!this.pending) this.setStatus('connected');

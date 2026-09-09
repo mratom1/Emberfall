@@ -1,28 +1,34 @@
-import {GRAPHICS,graphicsProfile} from './graphics.js';
-import {AccountUI} from './account-ui.js';
-import {nativeApp,chooseServer} from './native.js';
-import {QualityUI} from './quality-ui.js';
-import * as M from './model.js';
-import * as X from './expansion.js';
-import {ExpansionUI} from './expansion-ui.js';
-import {Connection,requestId} from './connection.js';
-import {Features,escapeHtml} from './features.js';
-import {World} from './world.js';
-import {TYPES,TROOPS,QUESTS,SAVE_KEY,loadState,capacity,armyCapacity,armySize,queueSize,hallLevel,freeBuilders,producerRate,productionCapacity,upgradeCost,canPlace,build,upgrade,train,advance,collect,claimQuest,enemyDef,createBattle,deploy,strike,stepBattle,settleBattle} from './model.js';
+import * as R from './raids.js?v=6.0.0';
+import {RaidUI} from './raid-ui.js?v=6.0.0';
+import {installLandscape} from './viewport.js?v=6.0.0';
+import {GRAPHICS,graphicsProfile} from './graphics.js?v=6.0.0';
+import {AccountUI} from './account-ui.js?v=6.0.0';
+import {nativeApp,chooseServer} from './native.js?v=6.0.0';
+import {QualityUI} from './quality-ui.js?v=6.0.0';
+import * as M from './model.js?v=6.0.0';
+import * as X from './expansion.js?v=6.0.0';
+import {ExpansionUI} from './expansion-ui.js?v=6.0.0';
+import {Connection,requestId} from './connection.js?v=6.0.0';
+import {Features,escapeHtml} from './features.js?v=6.0.0';
+import {World} from './world.js?v=6.0.0';
+import {TYPES,TROOPS,QUESTS,SAVE_KEY,loadState,capacity,armyCapacity,armySize,queueSize,hallLevel,freeBuilders,producerRate,productionCapacity,upgradeCost,canPlace,build,upgrade,train,advance,collect,claimQuest,enemyDef,createBattle,deploy,strike,stepBattle,settleBattle} from './model.js?v=6.0.0';
+
+installLandscape();
 
 const $=id=>document.getElementById(id), icon=name=>`<i data-lucide="${name}"></i>`, fmt=n=>Math.floor(n).toLocaleString('en-US');
 const seconds=ms=>`${Math.max(0,Math.ceil(ms/1000))}s`;
 const icons=()=>window.lucide?.createIcons({attrs:{'aria-hidden':'true'}});
 let storage;try{storage=window.localStorage;}catch{storage={getItem:()=>null,setItem:()=>{throw new Error('unavailable');}};}
 const api=new Connection();let syncEpoch=0,features,lastServerTime=0,worldSignature='',polling=false,battleId=null,selectedSpell='thunder';const shownResults=new Set();
-let currentRealm='home',capitalView=null,capitalLeader=false,extensions,quality;
+let currentRealm='home',capitalView=null,capitalLeader=false,extensions,quality,raidUI;
 function village(){if(currentRealm==='capital'&&capitalView)return capitalView;X.ensure(state);if(currentRealm==='builder'){state.expansion.builder.gems=state.gems;return state.expansion.builder;}return state;}
+let placementBusy=false;
 let state=loadState(storage),world,selected=null,placement=null,battle=null,selectedTroop='guardian',spellMode=false,modalKind='',saveFailed=false,lastUI=0,lastSave=0,hovered=null;
 const modal=$('modal');let audioContext;
 
 function save(){if(api.online){try{storage.setItem('emberfall.preferences',JSON.stringify(state.settings));}catch{}return;}try{storage.setItem(SAVE_KEY,JSON.stringify(state));}catch{if(!saveFailed){toast('This browser cannot save progress. Keep this tab open to continue.',true);saveFailed=true;}}}
 function worldSync(force=false){
- if(!world)return;world.setObstacles(village().obstacles||[]);world.setVillageHeroes(village().heroes||{},!!battle);
+ if(!world)return;world.setObstacles(village().obstacles||[]);world.setVillageHeroes(village().heroes||{},!!battle,village().buildings);world.setCampArmy(village(),!!battle);
  const list=battle?battle.buildings:village().buildings;const sig=(battle?'battle:':currentRealm+':')+JSON.stringify(list.map(b=>[b.id,b.type,b.level,b.x,b.z,b.rotation,!!b.finishAt]));
  if(sig!==worldSignature||force){worldSignature=sig;world.rebuild(list,!!battle);if(battle){world.setBattleBounds(battle.bounds);for(const u of battle.units)world.addUnit(u);}}
  if(battle){for(const u of battle.units)if(!world.unitMap.has(u.id))world.addUnit(u);world.updateBattle(battle);}else{for(const c of world.coins)c.b=village().buildings.find(b=>b.id===c.b.id)||c.b;for(const b of village().buildings){const m=world.buildingMap.get(b.id);if(m)m.userData.building=b;}}
@@ -40,7 +46,7 @@ async function sync(){if(!api.online||polling)return;polling=true;const epoch=sy
 async function mutate(action){
  if(!action.realm&&['build','move','upgrade','train','collect','research','clear','skip','brew','claim','train-batch','army-preset-save','army-preset-train','wall-upgrade'].includes(action.type))action={...action,realm:currentRealm};
  let r;if(api.online){r=await api.command({...action,...(action.type.startsWith('battle-')?{battleId}: {})});applyResponse(r);}
- else{let result;if(action.type==='battle-deploy')result=M.deploy(state,battle,action.troop,action.x,action.z);else if(action.type==='battle-hero')result=M.deployHero(state,battle,action.hero,action.x,action.z);else if(action.type==='battle-spell')result=M.castSpell(state,battle,action.spell,action.x,action.z);else if(action.type==='battle-siege')result=X.deploySiege(state,battle,action.siege,action.x,action.z);else if(action.type==='battle-ability')result=M.heroAbility(battle,action.hero);else result=M.applyAction(state,action);if(result.error)throw new Error(result.error);r={state,result};save();worldSync();renderHUD();if(battle)renderDeploy();}
+ else{let result;if(action.type==='battle-deploy')result=M.deploy(state,battle,action.troop,action.x,action.z);else if(action.type==='battle-hero')result=M.deployHero(state,battle,action.hero,action.x,action.z);else if(action.type==='battle-spell')result=M.castSpell(state,battle,action.spell,action.x,action.z);else if(action.type==='battle-siege')result=X.deploySiege(state,battle,action.siege,action.x,action.z);else if(action.type==='battle-ability')result=M.heroAbility(battle,action.hero);else result=M.applyAction(state,action);if(result.error)throw new Error(result.error);r={state,result};if(battle)R.startAttack(state,battle);save();worldSync();renderHUD();if(battle)renderDeploy();}
  return r.result||{};
 }
 function showBattleHUD(){if(!battle)return;$('village-hud').hidden=true;$('village-rail').hidden=true;$('battle-hud').hidden=false;$('battle-top').hidden=false;$('enemy-name').textContent=battle.enemy.name;$('spell-button').disabled=battle.ended;}
@@ -56,6 +62,7 @@ function showModal(kind,html){document.getElementById('kingdom-menu')?.close();m
 function closeModal(){modal.close();modalKind='';}
 function header(eyebrow,title){return `<div class="modal-header"><div><small>${eyebrow}</small><h2>${title}</h2></div><button class="close-btn" data-action="close" aria-label="Close dialog">${icon('x')}</button></div>`;}
 function renderHUD(){
+  raidUI?.tick();
   $('gold-value').textContent=fmt(village().gold);$('elixir-value').textContent=fmt(village().elixir);$('glory-value').textContent=fmt(village().glory);$('gold-fill').style.width=Math.min(100,village().gold/capacity(village())*100)+'%';$('elixir-fill').style.width=Math.min(100,village().elixir/capacity(village())*100)+'%';
   $('gems-value').textContent=fmt(state.gems||0);$('dark-value').textContent=fmt(state.dark||0);$('player-level').textContent=hallLevel(village());$('rank').textContent=village().glory>=250?'Ember sovereign':village().glory>=100?'Highland guardian':village().glory>=30?'Wilds explorer':'Wandering clan';
   $('builders').textContent=`${freeBuilders(village())}/${village().builders||2}`;$('army-count').textContent=Object.values(village().army).reduce((a,b)=>a+b,0);$('army-caption').textContent=`${armySize(village().army)} / ${armyCapacity(village())} spaces`;
@@ -83,7 +90,7 @@ function openBuild(){
 function startPlacement(type,movingId=null){
   closeModal();deselect();placement={type,movingId};world.setPlacement(type,village(),movingId);$('placement-bar').hidden=false;$('placement-text').textContent=`Move the ${TYPES[type].name} preview, then confirm`;icons();
 }
-function cancelPlacement(){placement=null;world?.setPlacement(null);$('placement-bar').hidden=true;}
+function cancelPlacement(){$('confirm-placement').innerHTML=icon('check')+' Build here';$('cancel-placement').textContent='Cancel';placement=null;world?.setPlacement(null);$('placement-bar').hidden=true;}
 function openArmy(){
   showModal('army',header('READY YOUR BANNERS','Raise an army')+`<div class="modal-body"><p class="modal-intro">Train your troops with elixir. Deployed troops are spent in battle; troops you keep in reserve return home.</p><p class="capacity-note" id="army-capacity">${icon('tent')}${armySize(village().army)+queueSize(village())} / ${armyCapacity(village())} army spaces</p><button class="btn btn-full" data-q="presets" style="margin-bottom:16px">${icon('layers')}Army presets · Quick train</button><div class="card-grid army-grid">${Object.entries(TROOPS).map(([type,d])=>`<article class="shop-card"><span class="card-badge" id="owned-${type}">${village().army[type]||0} ready</span><span class="card-icon">${icon(d.icon)}</span><h3>${d.name}</h3><p>${d.desc}</p><div class="card-meta"><span>Lv. ${village().research[type]||1}</span><span>${icon('heart')}${Math.round(d.hp*(1+((village().research[type]||1)-1)*.18))}</span><span>${icon('timer')}${d.time}s</span><span>${icon('users')}${d.space}</span></div><button class="btn btn-gold" data-action="train" data-type="${type}" id="train-${type}">${icon('droplets')}${d.cost} · Train</button><button class="btn btn-small" data-q="batch" data-troop="${type}" ${!M.troopUnlocked(village(),type)?'disabled':''}>Train 5 · ${d.cost*5} elixir</button></article>`).join('')}</div><div class="training-queue"><h3>Training queue</h3><div class="queue-items" id="queue-items"></div><div id="training-speed"></div></div><button class="btn btn-full" style="margin-top:18px" data-action="campaign">${icon('swords')} Find a battle</button></div>`);updateArmyModal();
 }
@@ -103,7 +110,7 @@ function openGuide(){showModal('guide',header('WELCOME, CHIEF','Your kingdom awa
 function openSettings(){showModal('settings',header('MAKE YOURSELF AT HOME','Game settings')+`<div class="modal-body"><div class="settings-row"><div><strong>Sound effects</strong><small>Construction, coins, and battle sounds</small></div><button class="btn" data-action="sound">${icon(state.settings.sound?'volume-2':'volume-x')}${state.settings.sound?'On':'Off'}</button></div><div class="settings-row"><div><strong>3D graphics</strong><small>Ultra HD uses more battery. Smooth suits older phones.</small></div><select id="graphics-quality" aria-label="3D graphics quality">${Object.entries(GRAPHICS).map(([id,p])=>`<option value="${id}" ${graphicsProfile(state.settings.quality)===id?'selected':''}>${p.name}</option>`).join('')}</select></div><div class="settings-row"><div><strong>How to play</strong><small>မြန်မာလို ကစားနည်းဖတ်ရန်</small></div><button class="btn" data-action="guide">${icon('book-open')} Guide</button></div><p class="settings-footer">Emberfall · Kingdoms at War<br>${api.online?'Server connected · Your village is saved in the server database.':saveFailed?'Saving is unavailable in this browser.':'Standalone mode · Your village is saved on this device.'}<br>Gold & elixir capacity: ${fmt(capacity(village()))} each.<br>${api.online?'Use an account to access your village on other devices.':'Clearing browser data removes your standalone village.'}</p><button class="btn btn-full" data-v2="account">Village account · Google / Facebook</button>${nativeApp()?'<button class="btn btn-full" data-action="server">Server & app</button>':''}<button class="btn btn-full" data-action="close" style="margin-top:10px">Continue playing</button></div>`);}
 async function doCollect(id){try{const r=await mutate({type:'collect',id});if(r.gold||r.elixir){toast(`${r.gold?'+'+fmt(r.gold)+' gold':''}${r.gold&&r.elixir?' · ':''}${r.elixir?'+'+fmt(r.elixir)+' elixir':''}`);sound('coin');for(const b of village().buildings)if((!id||id===b.id)&&producerRate(b))world.burst(b.x,2,b.z,b.type==='mine'?0xe7c467:0xcfa1e3,9);}else toast('Resources collected. Upgrade your stores if they are full.');}catch(e){toast(e.message,true);}}
 async function startBattle(index,defender,extra={}){
- try{syncEpoch++;closeModal();cancelPlacement();deselect();if(api.online){const r=await api.command({type:'battle-start',index,defender,...extra});applyResponse(r);}else{if(!extra.mode&&armySize(village().army)<1&&!Object.values(state.heroes).some(h=>h.level&&!h.finishAt&&!(h.recoverAt>Date.now()))){toast('Train your army before battle.',true);return;}const modeResult=extra.mode?X.createModeBattle(state,extra.mode):null;if(modeResult?.error)throw Error(modeResult.error);battle=modeResult?.battle||createBattle(state,index);battle.id=requestId();battleId=battle.id;worldSync(true);}
+ try{syncEpoch++;closeModal();cancelPlacement();deselect();if(api.online){const r=await api.command({type:'battle-start',index,defender,...extra});applyResponse(r);}else{if((!extra.mode||extra.mode==='match')&&armySize(village().army)<1&&!Object.values(state.heroes).some(h=>h.level&&!h.finishAt&&!(h.recoverAt>Date.now()))){toast('Train your army before battle.',true);return;}const modeResult=extra.mode==='match'?{battle:R.createBotBattle(state)}:extra.mode?X.createModeBattle(state,extra.mode):null;if(modeResult?.error)throw Error(modeResult.error);battle=modeResult?.battle||createBattle(state,index);battle.id=requestId();battleId=battle.id;worldSync(true);}
  selectedTroop=Object.keys(TROOPS).find(k=>battle.remaining[k]>0)||'guardian';spellMode=false;world.recenter();if((battle.bounds||8.7)>10)world.setZoom(.85);showBattleHUD();renderDeploy();sound('build');toast('Scout the defenses. Deploy outside the red border.');
  }catch(e){toast(e.message,true);}
 }
@@ -114,32 +121,40 @@ function renderDeploy(){
 }
 function finishBattle(){
   if(!battle||shownResults.has(battle.id))return;const r=battle.result||settleBattle(state,battle);shownResults.add(battle.id);save();renderHUD();sound(r.won?'win':'bad');spellMode=false;
-  showModal('result',`<div class="result-body"><span class="result-eyebrow">${escapeHtml(battle.enemy.name)}</span><h2>${r.stars===3?'Total victory':r.won?'Victory is yours':r.percent?'A hard-fought battle':'Live to fight again'}</h2><div class="result-stars" aria-label="${r.stars} of 3 stars">${'★'.repeat(r.stars)}${'☆'.repeat(3-r.stars)}</div><p>${r.practice?'Training complete · No resources spent<br>':''}${r.percent}% destruction${r.won?' · Your legend grows.':' · Regroup, train, and return stronger.'}</p><div class="result-loot"><div>${icon('coins')}${fmt(r.gold)}</div><div>${icon('droplets')}${fmt(r.elixir)}</div><div>${icon('trophy')}${r.glory}</div></div><p>${r.ore?'+'+r.ore+' ore · ':''}${r.capitalGold?'+'+r.capitalGold+' capital gold · ':''}${r.medals?'+'+r.medals+' raid medals':''}</p><button class="btn btn-gold" data-action="home">${icon('house')} Return home</button><p class="guide-foot">${Object.values(battle.deployed).reduce((a,b)=>a+b,0)} troops deployed · ${Object.values(battle.remaining).reduce((a,b)=>a+b,0)} troops return from reserve<br>Loot is added up to your village’s storage capacity.</p></div>`);
+  showModal('result',`<div class="result-body"><span class="result-eyebrow">${escapeHtml(battle.enemy.name)}</span><h2>${r.stars===3?'Total victory':r.won?'Victory is yours':r.percent?'A hard-fought battle':'Live to fight again'}</h2><div class="result-stars" aria-label="${r.stars} of 3 stars">${'★'.repeat(r.stars)}${'☆'.repeat(3-r.stars)}</div><p>${r.practice?'Training complete · No resources spent<br>':''}${r.percent}% destruction${r.won?' · Your legend grows.':' · Regroup, train, and return stronger.'}</p><div class="result-loot"><div>${icon('coins')}${fmt(r.gold)}</div><div>${icon('droplets')}${fmt(r.elixir)}</div><div>${icon('fuel')}${fmt(r.dark)}</div><div>${icon('trophy')}${r.glory}</div></div><p>${r.ore?'+'+r.ore+' ore · ':''}${r.capitalGold?'+'+r.capitalGold+' capital gold · ':''}${r.medals?'+'+r.medals+' raid medals':''}</p><button class="btn btn-gold" data-action="home">${icon('house')} Return home</button><p class="guide-foot">${Object.values(battle.deployed).reduce((a,b)=>a+b,0)} troops deployed · ${Object.values(battle.remaining).reduce((a,b)=>a+b,0)} troops return from reserve<br>Loot is added up to your village’s storage capacity.</p></div>`);
 }
 async function home(){
  try{syncEpoch++;if(api.online&&battle&&!battle.settled)await api.command({type:'battle-end',battleId});closeModal();battle=null;battleId=null;worldSignature='';worldSync(true);world.recenter();$('village-hud').hidden=false;$('village-rail').hidden=false;$('battle-hud').hidden=true;$('battle-top').hidden=true;if(api.online)await sync();renderHUD();}catch(e){toast(e.message,true);}
 }
-async function handleClick({point,buildingId,obstacleId}){
+async function handleClick({point,buildingId,obstacleId,heroType,campUnit}){
  if(!point||modal.open)return;
  if(battle){if(battle.ended)return;try{if(spellMode){await mutate({type:'battle-spell',spell:selectedSpell,x:point.x,z:point.z});world.spellEffect(selectedSpell,point.x,point.z);sound('spell');spellMode=false;$('spell-button').classList.remove('active');renderDeploy();return;}
   await mutate(X.SIEGE[selectedTroop]?{type:'battle-siege',siege:selectedTroop,x:point.x,z:point.z}:M.HEROES[selectedTroop]?{type:'battle-hero',hero:selectedTroop,x:point.x,z:point.z}:{type:'battle-deploy',troop:selectedTroop,x:point.x,z:point.z});sound('click');
  }catch(e){toast(e.message,true);}return;}
  if(placement){world.updatePlacement(point.x,point.z);return;}
+ if(heroType){deselect();features.heroes();return;}if(campUnit){openArmy();return;}
  if(obstacleId){deselect();features.obstacle(obstacleId);return;}
  if(buildingId)selectBuilding(village().buildings.find(b=>b.id===buildingId));else deselect();
 }
 async function confirmPlacement(){
- const p=world.placing;if(!p||!p.valid)return;const btn=$('confirm-placement');btn.disabled=true;
- try{const action=p.movingId?{type:'move',id:p.movingId,x:p.x,z:p.z,rotation:p.rotation}:{type:'build',building:p.type,x:p.x,z:p.z,rotation:p.rotation};const result=await mutate(action);cancelPlacement();worldSync(true);const building=result.building||village().buildings.find(b=>b.id===p.movingId);if(building)selectBuilding(village().buildings.find(b=>b.id===building.id));toast(p.movingId?'Building moved.':'Construction started.');sound('build');}catch(e){toast(e.message,true);}finally{btn.disabled=false;}
+ const p=world.placing;if(!p||!p.valid||placementBusy)return;const btn=$('confirm-placement');btn.disabled=true;placementBusy=true;
+ try{const action=p.movingId?{type:'move',id:p.movingId,x:p.x,z:p.z,rotation:p.rotation}:{type:'build',building:p.type,x:p.x,z:p.z,rotation:p.rotation};const result=await mutate(action);
+  if(p.type==='wall'&&!p.movingId){worldSync(true);world.setPlacement('wall',village());const next=M.nextWallSpot(village(),p.x,p.z,p.rotation);if(next)world.updatePlacement(next.x,next.z);world.placing.rotation=p.rotation;
+   $('confirm-placement').innerHTML=icon('plus')+' Add wall · '+TYPES.wall.gold; $('cancel-placement').textContent='Done';
+   if(village().gold<TYPES.wall.gold||village().buildings.filter(b=>b.type==='wall').length>=TYPES.wall.max){cancelPlacement();toast('Wall building finished.');}
+  }else{cancelPlacement();worldSync(true);const building=result.building||village().buildings.find(b=>b.id===p.movingId);if(building)selectBuilding(village().buildings.find(b=>b.id===building.id));toast(p.movingId?'Building moved.':'Construction started.');}
+  sound('build');icons();
+ }catch(e){toast(e.message,true);}finally{placementBusy=false;btn.disabled=!world.placing?.valid;}
 }
+
 function battleEvent(event){
-  if(event.kind==='hit'){const {unit:u,target:b}=event;if(event.ranged)world.projectile(u.x,.9,u.z,b.x,1.1,b.z,0xf2d799);else world.burst(u.x+(b.x-u.x)*.33,.7,u.z+(b.z-u.z)*.33,0xebc477,2);if(Math.random()<.18)sound('hit');}
+  if(event.kind==='hit'){const {unit:u,target:b}=event;if(u.hero)world.damageLabel(event.damage,b.x,2.5,b.z);if(event.ranged)world.projectile(u.x,.9,u.z,b.x,1.1,b.z,0xf2d799);else world.burst(u.x+(b.x-u.x)*.33,.7,u.z+(b.z-u.z)*.33,0xebc477,2);if(Math.random()<.18)sound('hit');}
   else if(event.kind==='defend'){const {building:b,unit:u}=event;world.projectile(b.x,b.type==='tower'?3:1.4,b.z,u.x,.6,u.z,b.type==='tower'?0xe9cd8c:0x534c37);}
   else if(event.kind==='end'){if(!api.online)finishBattle();}else if(event.kind==='trap')world.burst(event.building.x,.6,event.building.z,0xeaaa60,22);
 }
 function frame(dt,t){
   if(battle){if(!battle.ended)stepBattle(battle,dt,battleEvent);for(const u of battle.units)if(!world.unitMap.has(u.id))world.addUnit(u);world.updateBattle(battle);const left=Math.max(0,Math.ceil(battle.duration-battle.elapsed));$('battle-time').textContent=`${Math.floor(left/60)}:${String(left%60).padStart(2,'0')}`;$('destruction').textContent=battle.stats.percent+'%';$('battle-stars').textContent='★'.repeat(battle.stats.stars)+'☆'.repeat(3-battle.stats.stars);}
-  const now=Date.now();if(t-lastUI>.35){lastUI=t;const events=api.online?[]:advance(state,now);if(!api.online&&currentRealm==='builder')worldSync();if(events.some(e=>e.kind==='building')){if(!battle){worldSync(true);if(selected)selectBuilding(selected);}for(const e of events.filter(e=>e.kind==='building'))toast(`${TYPES[e.building.type].name} ready · Level ${e.building.level}`);sound('build');save();}if(events.some(e=>e.kind==='troop')){if(modalKind!=='army')toast(`${events.filter(e=>e.kind==='troop').length} troop${events.filter(e=>e.kind==='troop').length>1?'s':''} ready at camp.`);sound('train');}if(events.some(e=>['obstacle','regrow'].includes(e.kind))){worldSync(true);for(const e of events.filter(e=>e.kind==='obstacle'))toast(e.gems?'Obstacle cleared · +'+e.gems+' gems':'Obstacle cleared.');}renderHUD();}
+  const now=Date.now();if(t-lastUI>.35){lastUI=t;if(!battle)world.setVillageHeroes(village().heroes||{},false,village().buildings);const events=api.online?[]:advance(state,now);if(!api.online&&currentRealm==='builder')worldSync();if(events.some(e=>e.kind==='building')){if(!battle){worldSync(true);if(selected)selectBuilding(selected);}for(const e of events.filter(e=>e.kind==='building'))toast(`${TYPES[e.building.type].name} ready · Level ${e.building.level}`);sound('build');save();}if(events.some(e=>['hero','troop'].includes(e.kind)))worldSync();if(events.some(e=>e.kind==='troop')){if(modalKind!=='army')toast(`${events.filter(e=>e.kind==='troop').length} troop${events.filter(e=>e.kind==='troop').length>1?'s':''} ready at camp.`);sound('train');}if(events.some(e=>['obstacle','regrow'].includes(e.kind))){worldSync(true);for(const e of events.filter(e=>e.kind==='obstacle'))toast(e.gems?'Obstacle cleared · +'+e.gems+' gems':'Obstacle cleared.');}renderHUD();}
   if(t-lastSave>(api.online?(battle ? 0.7 : 3):8)){lastSave=t;if(api.online)sync();else save();}
   if(!battle&&!placement&&!modal.open){const b=selected||village().buildings.find(b=>b.id===hovered);if(b){const p=world.project(b);$('building-label').hidden=false;$('building-label').style.left=p.x+'px';$('building-label').style.top=p.y+'px';$('building-label').textContent=`${TYPES[b.type].name} · Lv. ${b.level}`;}else $('building-label').hidden=true;}else $('building-label').hidden=true;
 }
@@ -172,7 +187,7 @@ document.addEventListener('click',async e=>{
 });
 $('build-button').addEventListener('click',()=>{cancelPlacement();openBuild();});
 $('train-button').addEventListener('click',()=>{cancelPlacement();openArmy();});
-$('attack-button').addEventListener('click',()=>{cancelPlacement();openCampaign();});
+$('attack-button').addEventListener('click',()=>{cancelPlacement();currentRealm==='home'?raidUI.menu():openCampaign();});
 $('collect-button').addEventListener('click',()=>doCollect());
 $('quest-button').addEventListener('click',openQuests);
 $('player-button').addEventListener('click',()=>features?.account());
@@ -189,19 +204,19 @@ $('retreat-button').addEventListener('click',()=>{if(!battle)return;if(!battle.s
 modal.addEventListener('click',e=>{if(e.target===modal){const r=modal.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom){if(modalKind==='result')home();else closeModal();}}});
 modal.addEventListener('cancel',e=>{e.preventDefault();if(modalKind==='result')home();else closeModal();});
 document.addEventListener('keydown',e=>{if(modal.open||['INPUT','TEXTAREA'].includes(e.target.tagName))return;if(e.key==='Escape'){cancelPlacement();deselect();}if(e.key==='+'||e.key==='=')world.setZoom(world.zoom*1.1);if(e.key==='-')world.setZoom(world.zoom/1.1);if(e.key.toLowerCase()==='h')world.recenter();if(!battle&&e.key.toLowerCase()==='b')openBuild();if(!battle&&e.key.toLowerCase()==='a')openArmy();if(battle&&['1','2','3'].includes(e.key)){selectedTroop=['guardian','ranger','giant'][Number(e.key)-1];spellMode=false;renderDeploy();}});
-window.addEventListener('pagehide',save);document.addEventListener('visibilitychange',()=>{if(document.hidden)save();});
+window.addEventListener('pagehide',()=>{if(!api.online){R.ensure(state);state.raids.lastSeenAt=Date.now();}save();});document.addEventListener('visibilitychange',()=>{if(document.hidden)save();});
 function graphicsError(message){$('loading').hidden=false;$('loading').classList.remove('fade');$('loading').innerHTML=`<div class="critical-error">${icon('monitor')}<p>${message}</p><button class="btn btn-gold" id="reload-game">Reload game</button></div>`;$('reload-game').addEventListener('click',()=>location.reload());icons();}
 try{
-  const initial=await api.connect();if(initial){state=initial.state;state.playerId=initial.user.id;try{state.settings={...state.settings,...JSON.parse(storage.getItem('emberfall.preferences')||'{}')};}catch{}battle=initial.battle;battleId=initial.battleId;if(battle)battle.id=battleId;}
-  world=new World($('world'),{click:handleClick,hover:id=>{hovered=id;},placement:p=>{$('confirm-placement').disabled=!p.valid;$('placement-text').textContent=(p.valid?'✓ ':'Blocked · ')+TYPES[p.type].name+' · '+p.x+', '+p.z;},frame,error:graphicsError});features=new Features({api,state:()=>village(),root:()=>state,battle:()=>battle,modalKind:()=>modalKind,showModal,header,toast,mutate,apply:applyResponse,sync,startBattle,closeModal,selectHero:k=>{selectedTroop=k;spellMode=false;renderDeploy();},selectSpell:k=>{selectedSpell=k;spellMode=true;closeModal();renderDeploy();}});extensions=new ExpansionUI({api,root:()=>state,showModal,header,toast,mutate,setRealm,setCapital,portrait:(canvas,type)=>world.paintPortrait(canvas,type),startMode:extra=>startBattle(0,null,extra),selectSiege:k=>{selectedTroop=k;spellMode=false;renderDeploy();}});features.heroes=()=>extensions.heroes();new AccountUI(features);quality=new QualityUI({api,root:()=>state,village,realm:()=>currentRealm,showModal,header,toast,mutate,apply:applyResponse,sync});worldSync(true);if(battle)showBattleHUD();world.setQuality(state.settings.quality==='low'?'smooth':state.settings.quality);renderHUD();icons();$('sound-button').innerHTML=icon(state.settings.sound?'volume-2':'volume-x');icons();save();
+  const initial=await api.connect();if(!initial){R.ensure(state);const incoming=R.simulateDefense(state);if(incoming)setTimeout(()=>toast('Your village was raided. Open Battle history for details.'),1500);state.raids.lastSeenAt=Date.now();}if(initial){state=initial.state;state.playerId=initial.user.id;try{state.settings={...state.settings,...JSON.parse(storage.getItem('emberfall.preferences')||'{}')};}catch{}battle=initial.battle;battleId=initial.battleId;if(battle)battle.id=battleId;}
+  world=new World($('world'),{click:handleClick,hover:id=>{hovered=id;},placement:p=>{$('confirm-placement').disabled=!p.valid;$('placement-text').textContent=(p.valid?'✓ ':'Blocked · ')+TYPES[p.type].name+' · '+p.x+', '+p.z;},frame,error:graphicsError});features=new Features({api,state:()=>village(),root:()=>state,battle:()=>battle,modalKind:()=>modalKind,showModal,header,toast,mutate,apply:applyResponse,sync,startBattle,closeModal,selectHero:k=>{selectedTroop=k;spellMode=false;renderDeploy();},selectSpell:k=>{selectedSpell=k;spellMode=true;closeModal();renderDeploy();}});extensions=new ExpansionUI({api,root:()=>state,showModal,header,toast,mutate,setRealm,setCapital,portrait:(canvas,type,level)=>world.paintPortrait(canvas,type,level),startMode:extra=>startBattle(0,null,extra),selectSiege:k=>{selectedTroop=k;spellMode=false;renderDeploy();}});features.heroes=()=>extensions.heroes();raidUI=new RaidUI({api,root:()=>state,battle:()=>battle,features,showModal,header,toast,mutate,startBattle,home,campaign:openCampaign});new AccountUI(features);quality=new QualityUI({api,root:()=>state,village,realm:()=>currentRealm,showModal,header,toast,mutate,apply:applyResponse,sync});worldSync(true);if(battle)showBattleHUD();world.setQuality(state.settings.quality==='low'?'smooth':state.settings.quality);renderHUD();icons();$('sound-button').innerHTML=icon(state.settings.sound?'volume-2':'volume-x');icons();save();
   setTimeout(()=>{$('loading').classList.add('fade');setTimeout(()=>$('loading').hidden=true,650);},300);
   if(new URLSearchParams(location.search).get('purchase')==='success')toast('Checking payment confirmation. Your gem balance will update automatically.');
   setTimeout(()=>{if(!village().stats.built&&!village().stats.wins)toast('Welcome, chief. Tap a building to upgrade — or Battle to raid.');},1300);
 }catch(err){console.error(err);graphicsError(escapeHtml(err.message||'Could not start the game. Reload in a browser with WebGL enabled.'));}
 
 document.addEventListener('change',e=>{if(e.target.id==='graphics-quality'){state.settings.quality=graphicsProfile(e.target.value);world.setQuality(state.settings.quality);save();}});
-const kingdomMenu=document.getElementById('kingdom-menu'),nav=document.querySelector('.feature-nav'),navHome=nav.parentElement,navNext=nav.nextSibling,compact=matchMedia('(max-height: 620px) and (orientation: landscape), (max-width: 900px)');
-function arrangeKingdom(){if(compact.matches)kingdomMenu.querySelector('.kingdom-menu-body').append(nav);else{kingdomMenu.close();navHome.insertBefore(nav,navNext);}}
+const kingdomMenu=document.getElementById('kingdom-menu'),nav=document.querySelector('.feature-nav'),navHome=nav.parentElement,navNext=nav.nextSibling;
+function arrangeKingdom(){if(document.documentElement.classList.contains('game-compact'))kingdomMenu.querySelector('.kingdom-menu-body').append(nav);else{kingdomMenu.close();navHome.insertBefore(nav,navNext);}}
 for(const b of nav.querySelectorAll('button'))if(!b.querySelector('span')){const label=document.createElement('span');label.textContent=b.id==='clans-button'?'Clans':b.id==='research-button'?'Research':b.id==='spells-button'?'Spells':'Season';b.append(label);}
-compact.addEventListener('change',arrangeKingdom);arrangeKingdom();
+window.addEventListener('gameviewportchange',arrangeKingdom);arrangeKingdom();
 document.getElementById('kingdom-button').addEventListener('click',()=>{closeModal();kingdomMenu.showModal();});document.getElementById('close-kingdom').addEventListener('click',()=>kingdomMenu.close());

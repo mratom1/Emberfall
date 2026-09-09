@@ -1,4 +1,6 @@
-# Emberfall — Kingdoms at War 4.0
+# Emberfall — Kingdoms at War
+
+The latest update adds hero damage/HP/DPS, visible progression at every level, trained camp units, continuous wall placement, random player/AI raids, symmetric 10% loot, attack/defense history, Gem Shields and weekly Gem Boxes. It also keeps the automatic landscape layout and fixes static preview startup. See [Raids and progression](docs/RAIDS_AND_PROGRESSION.md) for the exact rules and preview/server differences.
 
 Version 5.0.0 adds Google/Facebook accounts, six illustrated heroes, High/Ultra HD graphics, a redesigned landscape UI, and native Android, iOS and Windows projects. See [Accounts and apps](docs/ACCOUNTS_AND_APPS.md) for setup, build commands and signing requirements.
 
@@ -28,13 +30,13 @@ The launcher creates .env if necessary and starts the game. Docker stores player
 
 | System | Behavior |
 |---|---|
-| Landscape | Phone rotation prompt, responsive landscape HUD, fullscreen/orientation lock where supported |
+| Landscape | Automatic landscape layout with mapped touch coordinates; fullscreen/orientation lock where supported |
 | Placement | Actual translucent 3D building, grid, blocked/valid footprint, drag/tap positioning, rotation, explicit confirmation |
 | Buildings | 20 types; Town Hall and building levels up to 15; unlock gates and timers; up to 5 builders |
-| Obstacles | Trees/rocks, clearing timers, 42% chance of 1–6 gems, regrowth capped at 28 obstacles |
+| Obstacles | Tree clearing has a 42% chance of 1–6 gems; rocks give no gems; weekly Gem Box gives 25 |
 | Walls | Individual/batch upgrades, map selection, cost preview, gold or elixir, 15 distinct 3D levels, Town Hall caps |
 | Army | Three presets per village, deficit-only quick train, atomic batches, 8 troop types; Barracks unlocks; training queues; camp limits; Laboratory research |
-| Heroes | Five home heroes with distinct 3D models, Town Hall unlocks and level caps, equipment, pets, recovery and abilities |
+| Heroes | Five home heroes with portraits, HP/damage/DPS, changing 3D models at every level, camp presence, Town Hall gates, equipment, pets, recovery and abilities |
 | Builder Base | Independent village, resources, 10 building levels, army, raids and Battle Machine hero |
 | Equipment / pets | Eight equipment items, two slots per hero, four trainable and assignable companions |
 | Siege | Three buildable siege machines; one deployed per raid; ground/flying behavior and reinforcements |
@@ -45,9 +47,9 @@ The launcher creates .env if necessary and starts the game. Docker stores player
 | Spells | Thunder, Heal, Rage, Freeze; Forge unlocks; brewing; 12-spell capacity |
 | Defenses | Seven defensive building types, destructible walls, area traps, ground/flying targeting |
 | Campaign | Progressively stronger AI strongholds, three-star scoring, loot and quests |
-| Player raids | Asynchronous attacks against saved player defenses; server simulation; loot deduction; shields; battle history |
+| Player raids | Random level-matched players or AI; saved defenses; maximum 10% stored-resource loot; incoming AI fallback; shields; attack/defense history |
 | Clans | Create/join/leave, 30 members, messages, donations, player and clan rankings |
-| Gems | Earn, spend on builders/resources/timers, optionally buy with Stripe Checkout |
+| Gems | Trees, weekly Gem Box and optional Stripe Checkout; spend on Shields, builders, resources and timers |
 | Work queue | Construction, training, research, recovery and upgrades across both villages |
 | Recovery | Stable-ID command retries, pending confirmation controls, automatic verified backups |
 | Accounts | Guest sessions, username/password registration, sign-in on another device, persistent SQLite state |
@@ -57,6 +59,7 @@ This original game has its own names, art, balance and progression. Its rules an
 ## Files
 
 - `dist/quality.js` / `dist/quality-ui.js`: army presets, wall groups, atomic batches and work queue.
+- `dist/raids.js` / `dist/raid-ui.js` / `server/raids.mjs`: shared raid rules, matching, shields, history, weekly gems and incoming AI.
 - `server/backups.mjs`: nonblocking automatic backup scheduler.
 - `.github/workflows/`: verified builds, image publishing and manual VPS deployment.
 - `dist/model.js`: shared game rules, economy, timers, progression, combat.
@@ -118,7 +121,7 @@ The full suite requires Node.js 24 and Python 3 (deployment fault simulation). D
 npm test
 ```
 
-60 checks passed: 13 gameplay/placement/asset checks, 9 core HTTP integration checks, 11 expansion checks, 11 security checks, 12 quality/recovery checks and 4 deployment fault simulations. Tests start a real Node server and cover accounts, concurrent actions, raids, clans and simulated signed payment notifications. No external payment request was made. JavaScript syntax, imports, launcher syntax and Compose YAML were checked. Docker image builds, public TLS deployment, real Stripe credentials and browser screenshots were not exercised here.
+The suite covers gameplay, core HTTP integration, expansion systems, security, quality/recovery, deployment fault simulations, OAuth/native app source, WebView layout/connection recovery, and raids/progression. Tests cover accounts, concurrent actions, transactional loot, shields, clans and simulated signed payment notifications. No external payment request is made. See the test output for the current checks. Target-device browser behavior, public TLS deployment and live Stripe credentials need separate operator verification.
 
 Original game code, procedural models and campaign artwork are included. Three.js and Lucide licenses are included under dist/assets. Emberfall is not affiliated with Supercell.
 

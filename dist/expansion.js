@@ -1,4 +1,4 @@
-import * as M from './model.js';
+import * as M from './model.js?v=6.0.0';
 
 export const EQUIPMENT={
  ironheart:{name:'Ironheart',icon:'shield',desc:'More hit points.',hp:.08},
@@ -80,10 +80,10 @@ export function action(s,a,now){
   const task=SEASON_TASKS.find(q=>q.id===a.id);if(!task||e.daily.claimed.includes(a.id)||(s.stats[task.stat]||0)-(e.daily.baseline[task.stat]||0)<task.goal)return error('Challenge is not complete.');e.daily.claimed.push(a.id);e.season.points+=task.xp;e.ore+=30;return {ok:true};
  }
  if(a.type==='season-claim'){
-  const tier=Number(a.tier);if(!Number.isInteger(tier)||tier<1||tier>20||e.season.points<tier*100||e.season.claimed.includes(tier))return error('Season reward is not ready.');e.season.claimed.push(tier);s.gems+=tier%5===0?50:10;e.ore+=50+tier*5;e.capitalGold+=100;return {ok:true};
+  const tier=Number(a.tier);if(!Number.isInteger(tier)||tier<1||tier>20||e.season.points<tier*100||e.season.claimed.includes(tier))return error('Season reward is not ready.');e.season.claimed.push(tier);e.ore+=50+tier*5;e.capitalGold+=100;return {ok:true};
  }
  if(a.type==='medal-exchange'){
-  const deals={ore:{cost:20,amount:200},capitalGold:{cost:15,amount:500},gems:{cost:50,amount:40}},d=deals[a.item];if(!Object.hasOwn(deals,a.item)||e.medals<d.cost)return error('Not enough raid medals.');e.medals-=d.cost;if(a.item==='gems')s.gems+=d.amount;else e[a.item]+=d.amount;return {ok:true};
+  const deals={ore:{cost:20,amount:200},capitalGold:{cost:15,amount:500}},d=deals[a.item];if(!Object.hasOwn(deals,a.item)||e.medals<d.cost)return error('Not enough raid medals.');e.medals-=d.cost;e[a.item]+=d.amount;return {ok:true};
  }
  return undefined;
 }

@@ -33,12 +33,22 @@ export class Connection {
   }
   async connect() {
     let response;
-    const serverOnly = globalThis.document?.querySelector('meta[name="emberfall-runtime"]')?.content === 'server';
+    const serverOnly = this.online || globalThis.document?.querySelector('meta[name="emberfall-runtime"]')?.content === 'server';
     try { response = await this.fetcher('/api/config', {signal: AbortSignal.timeout(8000)}); }
     catch (e) { if (serverOnly) throw e; this.setStatus('standalone'); return null; }
     if (response.status === 404 && !serverOnly) { this.setStatus('standalone'); return null; }
     if (!response.ok) throw new Error('The game server is unavailable. Please reload.');
-    const data = await response.json();
+    // Static hosts can serve index.html with HTTP 200 for an unknown /api route.
+    // Only standalone/auto mode may fall back; a server village must fail closed.
+    const body = await response.text();
+    if (/text\/html/i.test(response.headers.get('content-type') || '') || /^\s*(?:<!doctype\s+html\b|<html(?:\s|>))/i.test(body)) {
+      if (serverOnly) throw new Error('The game server returned a page instead of game data. Please reload or check the server address.');
+      this.setStatus('standalone'); return null;
+    }
+    let data;
+    try { data = JSON.parse(body); }
+    catch { throw new Error('The game configuration could not be read. Please reload or check the server address.'); }
+    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('The game server returned an invalid configuration.');
     if (!data.server) { if (serverOnly) throw new Error('The game server returned an invalid configuration.'); this.setStatus('standalone'); return null; }
     this.config = data;
     this.online = true;

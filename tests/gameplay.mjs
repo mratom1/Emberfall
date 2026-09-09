@@ -103,8 +103,8 @@ check('Placement uses an actual translucent building model and validates its foo
 check('Every authored local page asset exists and IDs are unique',()=>{
   const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../dist'),html=fs.readFileSync(path.join(root,'index.html'),'utf8');
   const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(x=>x[1]);assert.equal(new Set(ids).size,ids.length);
-  for(const [,url]of html.matchAll(/(?:src|href)="(\/[^"#]+)"/g))assert.ok(fs.existsSync(path.join(root,url)),url);
-  for(const file of ['game.js','world.js','model.js','features.js','connection.js']){const js=fs.readFileSync(path.join(root,file),'utf8');for(const [,ref]of js.matchAll(/from ['"](\.[^'"]+)['"]/g))assert.ok(fs.existsSync(path.resolve(root,ref)),ref);}
+  for(const [,url]of html.matchAll(/(?:src|href)="(\/[^"#]+)"/g))assert.ok(fs.existsSync(path.join(root,url.split('?')[0])),url);
+  for(const file of ['game.js','world.js','model.js','features.js','connection.js']){const js=fs.readFileSync(path.join(root,file),'utf8');for(const [,ref]of js.matchAll(/from ['"](\.[^'"]+)['"]/g))assert.ok(fs.existsSync(path.resolve(root,ref.split('?')[0])),ref);}
   assert.ok(fs.statSync(path.join(root,'assets/campaign.webp')).size>5000);
 });
 console.log(`${passed} gameplay and asset checks passed.`);

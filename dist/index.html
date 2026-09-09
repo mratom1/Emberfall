@@ -11,10 +11,10 @@
   <meta name="description" content="Build your village, raise an army, and conquer the wilds. Play Emberfall, an original 3D strategy game.">
   <title>Emberfall — Kingdoms at War</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect rx='16' width='64' height='64' fill='%23182721'/%3E%3Cpath d='M16 14h32v27L32 54 16 41z' fill='%23dbaa56'/%3E%3Cpath d='m37 19-16 18h12l-6 12 18-20H33z' fill='%23593226'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="/style.css">
-  <link rel="stylesheet" href="/theme.css">
+  <link rel="stylesheet" href="/style.css?v=6.0.0">
+  <link rel="stylesheet" href="/theme.css?v=6.0.0">
   <script src="/assets/lucide.min.js" defer></script>
-  <script type="module" src="/game.js"></script>
+  <script type="module" src="/game.js?v=6.0.0"></script>
 </head>
 <body>
   <main id="app" aria-label="Emberfall strategy game">
@@ -36,7 +36,7 @@
     </header>
 
     <aside class="left-rail" id="village-rail">
-      <div class="chapter"><span class="eyebrow">YOUR HOMELAND</span><h1>Willowmere</h1><span class="chapter-rule"></span></div>
+      <button id="shield-status" class="shield-status" data-raid="shields">Shield</button><div class="chapter"><span class="eyebrow">YOUR HOMELAND</span><h1>Willowmere</h1><span class="chapter-rule"></span></div>
       <button class="quest-card wood" id="quest-button"><span class="quest-icon"><i data-lucide="scroll-text"></i></span><span><small>THE PATH TO GREATNESS</small><strong id="quest-title">A growing village</strong><span class="quest-progress"><span id="quest-progress"></span></span><span class="quest-sub" id="quest-sub">Build your first gold mine</span></span><i data-lucide="chevron-right"></i></button>
       <nav class="feature-nav"><button class="square wood" id="heroes-button" aria-label="Heroes"><i data-lucide="crown"></i><span>Heroes</span></button><button class="square wood" id="research-button" aria-label="Research"><i data-lucide="microscope"></i></button><button class="square wood" id="spells-button" aria-label="Spells"><i data-lucide="wand-sparkles"></i></button><button class="square wood" id="clans-button" aria-label="Clans and players"><i data-lucide="shield-half"></i></button><button class="square wood" id="worlds-button" aria-label="Worlds and clan wars"><i data-lucide="globe"></i><span>Worlds</span></button><button class="square wood" id="season-button" aria-label="Season rewards"><i data-lucide="medal"></i></button></nav><button class="btn return-village" id="return-village" hidden><i data-lucide="house"></i> Home village</button>
       <button class="btn btn-small work-trigger" id="work-button"><i data-lucide="list-checks"></i> Work queue</button><div class="village-info"><span><i data-lucide="hammer"></i><b id="builders">2/2</b> builders</span><span><i data-lucide="users"></i><b id="army-count">14</b> troops</span></div>
@@ -66,6 +66,7 @@
       <button class="attack-button" id="attack-button"><i data-lucide="swords"></i><span><strong>Battle</strong><small>THE WILDS AWAIT</small></span><i data-lucide="chevron-right"></i></button>
     </footer>
 
+    <aside id="raid-scout" class="raid-scout wood" hidden></aside>
     <section class="battle-top wood" id="battle-top" hidden>
       <div><small>ENEMY STRONGHOLD</small><strong id="enemy-name">Bramble Outpost</strong></div><div class="battle-clock"><i data-lucide="timer"></i><strong id="battle-time">2:00</strong></div><div class="battle-destruction"><strong id="destruction">0%</strong><span id="battle-stars">☆☆☆</span></div>
     </section>
@@ -73,7 +74,6 @@
 
     <button id="connection-status" class="connection-status" type="button" role="status" aria-live="polite" hidden></button><div class="toast-stack" id="toasts" role="status" aria-live="polite"></div>
     <div class="loading" id="loading"><div class="loading-crest"><i data-lucide="castle"></i></div><strong>EMBERFALL</strong><span>Preparing your kingdom…</span><div class="loading-track"><span></span></div></div>
-    <div id="rotate-screen" class="rotate-screen"><i data-lucide="smartphone"></i><h2>ဘေးတိုက်လှည့်ပြီး ကစားပါ</h2><p>Emberfall ကို landscape မြင်ကွင်းနဲ့ ကစားနိုင်ပါတယ်။ ဖုန်းကို ဘေးတိုက်လှည့်ပြီး စတင်ပါ။</p><button class="btn btn-gold" id="landscape-start">Fullscreen နဲ့ ကစားမယ်</button><small>ဖုန်းရဲ့ Auto-rotate ကို ဖွင့်ထားပါ။</small></div>
     <dialog id="kingdom-menu" class="game-modal kingdom-menu"><div class="modal-header"><div><small>EMBERFALL</small><h2>Your kingdom</h2></div><button id="close-kingdom" class="close-btn" aria-label="Close kingdom menu"><i data-lucide="x"></i></button></div><div class="kingdom-menu-body"></div></dialog>
     <dialog id="modal" class="game-modal"><div id="modal-content"></div></dialog>
   </main>

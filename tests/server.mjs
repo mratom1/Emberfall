@@ -55,7 +55,7 @@ try{
  await request('/api/clans',{session:b,data:{action:'leave'}});patchState(a.user.id,s=>s.army.guardian=2);
  r=await command(a,{type:'battle-start',defender:b.user.id});assert.equal(r.status,200);assert.equal(r.result.battle.pvp,true);
  assert.equal((await command(b,{type:'battle-end',battleId:r.result.battleId})).status,404);
- await command(a,{type:'battle-end',battleId:r.result.battleId});assert.equal((await command(a,{type:'battle-start',defender:b.user.id})).status,400);passed('Player raids enforce ownership, use the saved defense layout, and apply a shield');
+ await command(a,{type:'battle-deploy',battleId:r.result.battleId,troop:'guardian',x:16.5,z:0});await command(a,{type:'battle-end',battleId:r.result.battleId});assert.equal((await command(a,{type:'battle-start',defender:b.user.id})).status,400);passed('Player raids enforce ownership, use the saved defense layout, and apply a shield');
  const rows=app.db.prepare('SELECT COUNT(*) AS n FROM raid_log').get();assert.ok(rows.n>=2);passed('Battle history and persistent SQLite records are available');
  console.log(`${checks} server integration checks passed. No external payment calls were made.`);
 }finally{await app.close();await rm(dir,{recursive:true,force:true});}

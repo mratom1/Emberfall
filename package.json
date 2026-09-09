@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "node --env-file-if-exists=.env server/app.mjs",
-    "test": "node tests/gameplay.mjs && node tests/server.mjs && node tests/expansion.mjs && node tests/security.mjs && node tests/quality.mjs && node tests/deployment.mjs && node tests/oauth.mjs",
+    "test": "node tests/gameplay.mjs && node tests/server.mjs && node tests/expansion.mjs && node tests/security.mjs && node tests/quality.mjs && node tests/deployment.mjs && node tests/oauth.mjs && node tests/webview.mjs && node tests/raids.mjs",
     "backup": "node --env-file-if-exists=.env scripts/backup.mjs",
     "apps:assets": "node scripts/prepare-app-assets.mjs"
   }

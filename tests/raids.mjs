@@ -52,7 +52,7 @@ pass('Raid loot is exactly a 10% maximum of each stored resource, without fixed 
 {
  const signature=model=>{const hash=createHash('sha256');model.traverse(o=>{if(o.isMesh){for(const name of ['position','color']){const a=o.geometry.getAttribute(name);if(a)hash.update(Buffer.from(a.array.buffer));}o.geometry.dispose();o.material.dispose();}});return hash.digest('hex');};
  for(const type of Object.keys(M.TYPES)){let prior;for(let level=1;level<=15;level++){const hash=signature(buildingModel({id:'v',type,level,x:0,z:0}));if(prior)assert.notEqual(hash,prior,type+' '+level);prior=hash;}}
- for(const type of Object.keys(M.HEROES)){let prior;for(let level=1;level<=50;level++){const hash=signature(makeUnit(type,false,{hero:true,level}));if(prior)assert.notEqual(hash,prior,type+' '+level);prior=hash;}assert.match(heroPortrait(type,'',12),/<img[^>]+hero-atlas/);}
+ for(const type of Object.keys(M.HEROES)){let prior;for(let level=1;level<=50;level++){const hash=signature(makeUnit(type,false,{hero:true,level}));if(prior)assert.notEqual(hash,prior,type+' '+level);prior=hash;}assert.match(heroPortrait(type,'',12),/<image[^>]+hero-(?:atlas|recruits-v8)\.webp/);}
  pass('Every building level 1–15 and hero level 1–50 changes actual model geometry/colors; portraits reference a real image');
 }
 {

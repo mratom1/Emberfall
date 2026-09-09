@@ -12,8 +12,16 @@ const now=Date.now();
 function state(){const s=M.initialState(now);M.advance(s,now);return s;}
 {
  const s=state();s.dark=1e7;s.buildings.push({id:'altar',type:'altar',x:8,z:8,level:1});
- for(const type of X.HOME_HEROES){const def=M.HEROES[type],hall=s.buildings[0];hall.level=def.unlock-1;assert.ok(M.upgradeHero(s,type,now).error,type+' must remain locked');hall.level=def.unlock;assert.equal(M.heroMaxLevel(s,type),5);assert.ok(M.upgradeHero(s,type,now).ok);M.advance(s,now+40000);assert.equal(s.heroes[type].level,1);s.heroes[type].level=5;assert.ok(M.upgradeHero(s,type,now+40000).error);hall.level++;assert.equal(M.heroMaxLevel(s,type),10);assert.ok(M.upgradeHero(s,type,now+40000).ok);}
- pass('All five home heroes enforce Town Hall unlocks and Town Hall level caps');
+ for(const type of X.HOME_HEROES){
+  const def=M.HEROES[type],hall=s.buildings[0],barracks=s.buildings.find(b=>b.type==='barracks');
+  hall.level=def.unlock-1;barracks.level=def.barracks||1;assert.ok(M.upgradeHero(s,type,now).error,type+' must remain locked');
+  hall.level=def.unlock;if(def.barracks){barracks.level=def.barracks-1;assert.ok(M.upgradeHero(s,type,now).error,type+' needs Barracks');barracks.level=def.barracks;}
+  const cap=def.barracks?Math.min(50,def.unlock*5,def.barracks*5):5;assert.equal(M.heroMaxLevel(s,type),cap);
+  assert.ok(M.upgradeHero(s,type,now).ok);M.advance(s,now+40000);assert.equal(s.heroes[type].level,1);
+  s.heroes[type].level=cap;assert.ok(M.upgradeHero(s,type,now+40000).error);hall.level++;barracks.level++;
+  const next=Math.min(50,cap+5);assert.equal(M.heroMaxLevel(s,type),next);if(next>cap)assert.ok(M.upgradeHero(s,type,now+40000).ok);
+ }
+ pass('All 20 home heroes enforce Town Hall and Barracks unlocks, progression caps and maximum level 50');
 }
 {
  const s=state();s.heroes.king.level=1;s.expansion.ore=10000;
@@ -46,7 +54,7 @@ function warPatch(id,fn){const w=JSON.parse(app.db.prepare('SELECT state FROM wa
 async function win(session,mode){patch(session.id,s=>{s.army.guardian=30;s.army.giant=10;s.heroes.king={level:20,recoverAt:0};});const start=await cmd(session,{type:'battle-start',...mode});assert.equal(start.status,200,JSON.stringify(start));const id=start.battleId;for(let i=0;i<10;i++)assert.equal((await cmd(session,{type:'battle-deploy',battleId:id,troop:'giant',x:(i%5-2)*.6,z:start.battle.bounds+2})).status,200);assert.equal((await cmd(session,{type:'battle-hero',battleId:id,hero:'king',x:0,z:start.battle.bounds+2})).status,200);await cmd(session,{type:'battle-ability',battleId:id,hero:'king'});app.db.prepare('UPDATE battles SET last_step=last_step-151000 WHERE id=?').run(id);const end=await req(session,'/battle?id='+id);assert.equal(end.status,200);assert.ok(end.battle.settled);return end;}
 try{
  const a=await guest(),b=await guest(),mate=await guest();
- assert.equal((await cmd(a,{type:'hero-upgrade',hero:'queen'})).status,400);let r=await cmd(a,{type:'battle-start',mode:'training'});assert.equal(r.status,200);const before=r.state.gold;assert.equal(Object.keys(r.battle.heroStock).length,5);await cmd(a,{type:'battle-hero',battleId:r.battleId,hero:'champion',x:0,z:11});r=await cmd(a,{type:'battle-end',battleId:r.battleId});assert.equal(r.state.gold,before);assert.equal(r.state.heroes.champion.level,0);pass('Server rejects locked heroes and keeps training heroes separate from real accounts');
+ assert.equal((await cmd(a,{type:'hero-upgrade',hero:'queen'})).status,400);let r=await cmd(a,{type:'battle-start',mode:'training'});assert.equal(r.status,200);const before=r.state.gold;assert.equal(Object.keys(r.battle.heroStock).length,20);await cmd(a,{type:'battle-hero',battleId:r.battleId,hero:'champion',x:0,z:11});r=await cmd(a,{type:'battle-end',battleId:r.battleId});assert.equal(r.state.gold,before);assert.equal(r.state.heroes.champion.level,0);pass('Server rejects locked heroes and keeps training heroes separate from real accounts');
  const ca=await req(a,'/clans',{action:'create',name:'North Test Clan'}),cb=await req(b,'/clans',{action:'create',name:'South Test Clan'});assert.equal(ca.status,200);assert.equal(cb.status,200);await req(mate,'/clans',{action:'join',id:ca.user.clanId});
  assert.equal((await cmd(mate,{type:'war-start',opponent:cb.user.clanId})).status,400);r=await cmd(a,{type:'war-start',opponent:cb.user.clanId});assert.equal(r.status,200);let front=await req(a,'/frontiers'),w=front.wars[0];assert.equal((await cmd(a,{type:'battle-start',mode:'war',warId:w.id,target:b.id})).status,400);warPatch(w.id,w=>w.readyAt=Date.now()-1);
  const wa=await win(a,{mode:'war',warId:w.id,target:b.id});assert.ok(wa.battle.result.stars);assert.equal((await cmd(a,{type:'battle-start',mode:'war',warId:w.id,target:b.id})).status,400);

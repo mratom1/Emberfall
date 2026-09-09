@@ -1,0 +1,1266 @@
+You are working directly on my existing game project:
+
+EMBERFALL KINGDOMS
+
+This is a production architecture, backend engineering, scalability,
+security, persistence, deployment, and load-testing task.
+
+I want this game prepared for REAL PUBLIC RELEASE.
+
+TARGET ENVIRONMENT:
+
+Initial production server:
+- Linux VPS
+- 8 CPU cores
+- 18 GB RAM
+- 240 GB SSD
+- 300 Mbps unmetered network
+- Dedicated IP
+- Nginx / reverse proxy
+- Cloudflare in front where appropriate
+
+TARGET SCALE:
+
+Design the system so it can support a large public player base and aim for:
+
+- 10,000+ concurrent authenticated players
+- tens of thousands of registered accounts
+- large numbers of simultaneous village saves
+- upgrades running concurrently
+- troop training timers
+- hero timers
+- PvE/PvP battle activity
+- leaderboards
+- clans/social systems later
+- frequent resource and progression updates
+
+IMPORTANT:
+
+Do NOT falsely claim the server supports 10,000 concurrent users without benchmarking it.
+
+You must:
+1. engineer for this target
+2. optimize bottlenecks
+3. create realistic load tests
+4. benchmark the system
+5. report the actual measured capacity
+6. identify the first bottleneck
+7. prepare the architecture so horizontal scaling can be added later without rewriting the game
+
+This is NOT just an architecture report.
+
+Inspect the existing project.
+Modify the actual code.
+Create or improve the backend.
+Create the database architecture.
+Add caching where appropriate.
+Add security.
+Add observability.
+Add deployment configuration.
+Add load tests.
+Run tests.
+Fix bottlenecks.
+
+Do not stop after making a plan.
+
+==================================================
+CORE PRINCIPLE — SERVER AUTHORITATIVE GAME
+==================================================
+
+The browser/client must NEVER be trusted as the authoritative source for:
+
+- Gold
+- Elixir
+- Dark resources
+- Gems
+- Glory
+- XP
+- Player level
+- Building levels
+- Building locations where validation matters
+- Upgrade completion
+- Builders
+- Hero levels
+- Army state
+- Training queues
+- Research
+- Quest rewards
+- Expansion unlocks
+- Battle rewards
+- Loot
+- Ranking
+- Premium currency transactions
+
+The client may REQUEST an action.
+
+The SERVER must validate and perform it.
+
+Example:
+
+Client:
+"Upgrade Barracks #123"
+
+Server must validate:
+
+- player owns the building
+- current building level
+- upgrade requirement
+- resource balance
+- builder availability
+- Kingdom/Town Hall requirement
+- upgrade is not already running
+- no invalid state exists
+
+Then server:
+
+- performs the resource deduction atomically
+- reserves builder
+- creates upgrade timestamp
+- commits database transaction
+- returns authoritative state
+
+Never accept:
+
+resources = 999999
+
+from client-side state.
+
+==================================================
+ARCHITECTURE GOAL
+==================================================
+
+Design the production architecture approximately as:
+
+Cloudflare
+    ↓
+Nginx / reverse proxy
+    ↓
+Stateless Game API
+    ↓
+Redis
+    ↓
+PostgreSQL
+
+Background jobs/workers should exist only where useful.
+
+Static assets should NOT unnecessarily consume game API resources.
+
+Prepare static game assets for CDN/object storage deployment.
+
+The application architecture must allow the future transition from:
+
+1 API server
+
+to:
+
+Load Balancer
+    ↓
+API Server 1
+API Server 2
+API Server 3
+...
+
+without changing gameplay logic.
+
+Do NOT store critical session/game state only in process memory.
+
+==================================================
+API DESIGN
+==================================================
+
+Inspect the existing frontend and create a clean production API.
+
+Suggested logical groups:
+
+/auth
+/player
+/village
+/buildings
+/upgrades
+/builders
+/resources
+/heroes
+/army
+/training
+/research
+/quests
+/expansions
+/battle
+/clans
+/leaderboard
+
+Do NOT create one huge endpoint that returns and modifies everything.
+
+Avoid excessive tiny requests as well.
+
+Design efficient endpoints based on actual gameplay flows.
+
+Where appropriate, provide combined initial-state endpoints so game startup does not require dozens of sequential network requests.
+
+==================================================
+DATABASE — POSTGRESQL
+==================================================
+
+Use PostgreSQL as the authoritative persistent database unless the current project already has an equivalent production-ready datastore.
+
+Design normalized but practical tables for concepts such as:
+
+users
+player_profiles
+player_resources
+villages
+buildings
+building_upgrades
+builders
+heroes
+hero_upgrades
+army_units
+training_queues
+research
+quests
+quest_progress
+expansion_zones
+battle_history
+battle_rewards
+clans
+clan_members
+leaderboards
+sessions
+
+Adapt this to the actual codebase.
+
+IMPORTANT:
+
+Create proper:
+
+- primary keys
+- foreign keys where appropriate
+- unique constraints
+- composite indexes
+- query indexes
+- timestamps
+- transactional updates
+
+Do NOT add indexes blindly.
+
+Use query patterns to determine indexing.
+
+==================================================
+DATABASE CONNECTION MANAGEMENT
+==================================================
+
+Do NOT create a new DB connection for every request.
+
+Use a proper connection pool.
+
+Tune pool size based on:
+
+- 8 CPU cores
+- PostgreSQL capacity
+- actual request concurrency
+
+Avoid exhausting PostgreSQL connections.
+
+Implement:
+
+- connection timeout
+- query timeout
+- idle connection management
+- graceful DB failure handling
+
+==================================================
+ATOMIC GAME TRANSACTIONS
+==================================================
+
+Critical game actions must be atomic.
+
+Examples:
+
+Upgrade:
+
+BEGIN
+check resources
+check builder
+deduct resources
+reserve builder
+start upgrade
+COMMIT
+
+Gem instant finish:
+
+BEGIN
+lock relevant state
+validate Gem amount
+deduct Gems
+complete upgrade
+release builder
+COMMIT
+
+Quest reward:
+
+BEGIN
+verify reward not already claimed
+mark claimed
+grant reward
+COMMIT
+
+Prevent:
+
+- double spending
+- duplicate rewards
+- duplicate upgrades
+- replayed transactions
+- race condition exploits
+
+Use row locking / optimistic concurrency / versioning where appropriate.
+
+==================================================
+IDEMPOTENCY
+==================================================
+
+Network retries must not duplicate important actions.
+
+For transactional endpoints such as:
+
+- purchases
+- Gem spending
+- upgrade start
+- instant finish
+- reward claims
+- battle reward claims
+
+implement idempotency where appropriate.
+
+If the same request is accidentally submitted twice,
+the player must not receive or spend resources twice.
+
+==================================================
+TIMERS — NO PER-PLAYER TIMER PROCESSES
+==================================================
+
+NEVER keep one live server timer/thread/process per upgrade.
+
+For:
+
+- building upgrades
+- construction
+- hero upgrades
+- troop training
+- research
+- cooldowns
+
+store timestamps such as:
+
+started_at
+ends_at
+
+When state is requested:
+
+if current_time >= ends_at:
+    resolve the completed action
+
+Use background workers only for tasks that genuinely need asynchronous processing.
+
+10,000 players with upgrades must NOT mean 10,000 continuously running timers.
+
+==================================================
+REDIS
+==================================================
+
+Use Redis only where it provides real value.
+
+Possible uses:
+
+- session caching
+- hot player state cache
+- rate limiting
+- distributed locks where needed
+- leaderboard caching
+- short-lived matchmaking data
+- request deduplication
+- pub/sub later if multiple API servers exist
+
+Do NOT make Redis the only durable copy of important player progress.
+
+PostgreSQL remains authoritative.
+
+Implement TTL carefully.
+
+Prevent stale cache from overwriting newer DB state.
+
+==================================================
+AUTHENTICATION
+==================================================
+
+Implement production authentication.
+
+Requirements:
+
+- secure password hashing if password auth exists
+- secure session or token management
+- expiration
+- refresh mechanism where appropriate
+- logout
+- session revocation
+- account locking/rate limits for abuse
+- HTTPS-only production configuration
+- secure cookies where applicable
+
+Do not expose secrets in frontend code.
+
+Do not log access tokens/passwords.
+
+==================================================
+SECURITY
+==================================================
+
+Protect against:
+
+- SQL injection
+- XSS
+- CSRF where applicable
+- brute-force login attempts
+- request flooding
+- malformed JSON
+- oversized request payloads
+- resource manipulation
+- replay attacks
+- duplicate reward claims
+- unauthorized village modification
+- IDOR
+- insecure direct player ID access
+- admin endpoint exposure
+
+Every player-specific request must confirm authorization.
+
+Player A must NEVER access Player B's private state by changing an ID.
+
+==================================================
+RATE LIMITING
+==================================================
+
+Implement sensible rate limiting.
+
+Different endpoint classes need different limits.
+
+Example:
+
+Login:
+strict
+
+Normal game reads:
+higher
+
+Upgrade/resource actions:
+moderate
+
+Battle result:
+strict validation
+
+Do NOT make limits so aggressive that normal gameplay feels broken.
+
+Use Redis-backed rate limits if needed for future multiple server instances.
+
+==================================================
+ANTI-CHEAT / GAME VALIDATION
+==================================================
+
+Do not trust the client battle result blindly.
+
+For battle-related systems:
+
+validate reasonable:
+
+- battle duration
+- deployed troop ownership
+- troop quantities
+- army capacity
+- target base
+- damage progression where feasible
+- victory conditions
+- loot ceiling
+- stars/destruction
+- impossible action sequences
+
+Do not create expensive full server-side simulation unless the existing battle architecture requires it.
+
+Use a practical validation model suitable for an asynchronous strategy game.
+
+==================================================
+SAVE STRATEGY
+==================================================
+
+Do NOT save the entire player state every second.
+
+Use event/action-driven persistence.
+
+Save important changes when actions occur.
+
+Examples:
+
+- building placed
+- upgrade started
+- resource collected
+- hero upgraded
+- troop queued
+- battle completed
+- quest claimed
+
+Avoid constant massive JSON rewrites.
+
+Prefer structured DB changes.
+
+==================================================
+RESOURCE PRODUCTION
+==================================================
+
+Do NOT run resource-production loops continuously for every player.
+
+Store:
+
+last_collected_at
+production_rate
+capacity
+
+Calculate resources lazily:
+
+elapsed =
+current_time - last_collected_at
+
+generated =
+elapsed * production_rate
+
+Clamp to capacity.
+
+This allows millions of offline producers without background CPU usage.
+
+==================================================
+GAME STARTUP
+==================================================
+
+Optimize initial village loading.
+
+Avoid frontend waterfall requests like:
+
+request player
+then request resources
+then buildings
+then heroes
+then builders
+then quests
+then expansion...
+
+Create an efficient startup-state API where appropriate.
+
+Return only necessary data.
+
+Use compression.
+
+Avoid huge unnecessary payloads.
+
+==================================================
+PAYLOAD OPTIMIZATION
+==================================================
+
+Inspect API responses.
+
+Remove unnecessary data.
+
+Avoid returning complete static building definitions repeatedly.
+
+Static definitions should be:
+
+- cached client-side
+- versioned
+- CDN served where appropriate
+
+Dynamic API responses should contain only changing game state.
+
+Enable compression where useful.
+
+==================================================
+STATIC ASSETS / CDN
+==================================================
+
+Do not serve every image, sound, animation, and large asset through the backend application process.
+
+Prepare the project so static assets can be served using:
+
+Cloudflare CDN
+and/or
+Cloudflare R2/object storage
+
+Use:
+
+- cache-control
+- asset hashes/versioning
+- long-lived immutable caching where appropriate
+
+The game API VPS should mainly process gameplay/auth/database traffic.
+
+==================================================
+NGINX
+==================================================
+
+Create production Nginx configuration.
+
+Include:
+
+- reverse proxy
+- HTTPS-ready configuration
+- keep-alive
+- compression where appropriate
+- static asset caching
+- request size limits
+- sensible timeouts
+- security headers
+- rate limit integration where useful
+- WebSocket support only if actually required
+
+Do not use extremely low or extremely high timeout defaults blindly.
+
+==================================================
+PROCESS MANAGEMENT
+==================================================
+
+Production backend must automatically restart after crashes/reboots.
+
+Use the technology appropriate for the project:
+
+systemd
+or
+Docker Compose
+
+Prefer a reproducible deployment.
+
+Create:
+
+- production environment configuration
+- health checks
+- graceful shutdown
+- restart policy
+
+==================================================
+DOCKER / DEPLOYMENT
+==================================================
+
+If appropriate for the current project, create:
+
+docker-compose.production.yml
+
+with services such as:
+
+app
+postgres
+redis
+nginx
+
+Do not expose PostgreSQL or Redis publicly.
+
+Only expose ports that must be publicly reachable.
+
+Use environment variables/secrets correctly.
+
+Do NOT commit secrets to Git.
+
+==================================================
+DATABASE BACKUPS
+==================================================
+
+Create a production backup strategy.
+
+At minimum:
+
+- automated PostgreSQL backups
+- rotation
+- timestamped backups
+- restore instructions
+- backup verification
+
+Provider snapshots are NOT enough by themselves.
+
+Create an application DB backup mechanism.
+
+==================================================
+LOGGING
+==================================================
+
+Implement structured production logging.
+
+Log:
+
+- request ID
+- endpoint
+- status
+- latency
+- error class
+
+Do NOT log:
+
+- passwords
+- tokens
+- complete private player data
+
+Use log rotation.
+
+Prevent logs from filling the 240 GB disk.
+
+==================================================
+OBSERVABILITY
+==================================================
+
+Provide metrics for:
+
+- requests/sec
+- p50 latency
+- p95 latency
+- p99 latency
+- HTTP error rate
+- CPU
+- memory
+- DB connection pool
+- DB query time
+- Redis usage
+- active users
+- slow endpoints
+- event loop / worker saturation if applicable
+
+Create health endpoints such as:
+
+/health
+/ready
+
+where appropriate.
+
+==================================================
+DATABASE PERFORMANCE
+==================================================
+
+Identify slow query paths.
+
+Use EXPLAIN / EXPLAIN ANALYZE where applicable.
+
+Avoid:
+
+- N+1 queries
+- full table scans on hot paths
+- unnecessary joins
+- SELECT *
+- unbounded history queries
+
+Add pagination for:
+
+battle history
+leaderboards
+clans
+search
+player lists
+
+==================================================
+LEADERBOARDS
+==================================================
+
+Do not recalculate global rankings from the entire database on every request.
+
+Use an efficient leaderboard architecture.
+
+Redis sorted sets may be appropriate.
+
+Persist authoritative ranking data as required.
+
+==================================================
+CLANS / SOCIAL SYSTEMS
+==================================================
+
+If these systems already exist:
+
+prepare them for scale.
+
+Do not return entire clan histories on every request.
+
+Paginate messages/events.
+
+Use efficient membership indexes.
+
+If clans are not implemented yet:
+prepare clean extension points without wasting this session building the whole clan system.
+
+==================================================
+REAL-TIME FEATURES
+==================================================
+
+Do NOT introduce WebSockets everywhere just because this is a game.
+
+This game is primarily asynchronous.
+
+Prefer normal HTTP APIs for:
+
+- upgrades
+- resource actions
+- village state
+- army
+- progression
+
+Use WebSockets/server push only for features that genuinely benefit from them, such as:
+
+- live clan chat
+- certain realtime notifications
+- live battle spectating later
+
+This reduces connection overhead.
+
+==================================================
+10,000 CONCURRENT PLAYER DESIGN
+==================================================
+
+Optimize for 10,000 concurrent active sessions.
+
+Remember:
+
+10,000 concurrent users does NOT necessarily mean
+10,000 requests per second.
+
+Model realistic behavior.
+
+Create load-test scenarios such as:
+
+Scenario A:
+10,000 connected/logged-in sessions
+low-frequency gameplay requests
+
+Scenario B:
+5,000 active users performing village actions
+
+Scenario C:
+1,000+ requests/sec burst
+
+Scenario D:
+mass reconnect after deployment/server restart
+
+Scenario E:
+many simultaneous resource collections
+
+Scenario F:
+many upgrade starts/completions
+
+Scenario G:
+leaderboard reads
+
+Scenario H:
+login spike
+
+Use realistic think time.
+
+==================================================
+LOAD TESTING
+==================================================
+
+Create automated load tests using a suitable tool such as:
+
+k6
+Locust
+or an equivalent
+
+Test progressively:
+
+100 users
+500 users
+1,000 users
+2,500 users
+5,000 users
+10,000 users
+
+Do NOT jump immediately to 10,000 and call the system broken.
+
+Measure:
+
+- throughput
+- latency
+- CPU
+- RAM
+- DB pool saturation
+- DB latency
+- Redis latency
+- error rate
+
+==================================================
+PERFORMANCE TARGETS
+==================================================
+
+Use these as engineering targets, not fake guarantees:
+
+Normal API requests:
+
+p50 < 100 ms
+p95 < 250 ms
+p99 < 500 ms where realistic
+
+Sustained HTTP error rate:
+
+< 1%
+
+Critical transactional operations:
+
+must remain correct even under concurrent requests.
+
+If these targets cannot be achieved on the specified VPS:
+
+identify exactly why.
+
+Do not hide results.
+
+==================================================
+VPS RESOURCE TARGET
+==================================================
+
+Initial target VPS:
+
+8 CPU cores
+18 GB RAM
+240 GB SSD
+300 Mbps
+
+Tune the deployment for this environment.
+
+Do not let:
+
+PostgreSQL
+Redis
+backend
+workers
+Nginx
+
+consume all RAM.
+
+Leave safe headroom.
+
+Avoid swap thrashing.
+
+Configure sensible process limits and connection limits.
+
+==================================================
+GRACEFUL OVERLOAD
+==================================================
+
+The server must degrade safely when overloaded.
+
+Do not allow total collapse.
+
+Implement where appropriate:
+
+- bounded queues
+- timeouts
+- backpressure
+- connection limits
+- rate limits
+- circuit-breaking/failure handling
+- overload responses
+
+A short traffic spike should not destroy the DB.
+
+==================================================
+HORIZONTAL SCALING READINESS
+==================================================
+
+Although the initial deployment is one VPS,
+design the backend so later I can migrate to:
+
+Cloudflare / Load Balancer
+        ↓
+API-1
+API-2
+API-3
+        ↓
+Redis
+        ↓
+PostgreSQL
+
+without rewriting gameplay logic.
+
+Requirements:
+
+- stateless API processes
+- shared sessions/cache
+- DB-authoritative game state
+- no important in-memory-only state
+- no local-file dependency for active player state
+
+==================================================
+ZERO / LOW DOWNTIME DEPLOYMENT READINESS
+==================================================
+
+Prepare a deployment approach that minimizes game downtime.
+
+Include:
+
+- database migration strategy
+- backward-compatible migrations where practical
+- graceful API shutdown
+- health checks
+- startup readiness checks
+
+Do not apply destructive database migrations automatically without safety.
+
+==================================================
+DATA MIGRATIONS
+==================================================
+
+Create a proper database migration system.
+
+Never rely on manually editing production tables.
+
+Migrations should be:
+
+- versioned
+- reproducible
+- reviewable
+- safe
+
+==================================================
+FAILURE SCENARIOS
+==================================================
+
+Test or design for:
+
+PostgreSQL temporarily unavailable
+Redis unavailable
+backend process crash
+server restart
+client retries
+duplicate requests
+network timeout
+partial transaction failure
+invalid save data
+expired session
+deployment during active upgrades
+
+Game progress must remain consistent.
+
+==================================================
+SECURE ADMIN OPERATIONS
+==================================================
+
+If admin functionality exists:
+
+do NOT expose it through normal public APIs without strong authorization.
+
+Admin actions must be logged.
+
+Never allow a client-side "isAdmin=true" value to grant privileges.
+
+==================================================
+CODE QUALITY
+==================================================
+
+Do not create one giant backend file.
+
+Separate:
+
+routes/controllers
+services
+game rules
+repositories/data access
+authentication
+validation
+configuration
+caching
+jobs
+observability
+
+Keep core game rules testable independently from HTTP handlers.
+
+==================================================
+TESTING
+==================================================
+
+Add automated tests for critical concurrency cases.
+
+Especially:
+
+Two simultaneous upgrade requests
+Two simultaneous Gem Finish requests
+Double quest claim
+Double battle reward
+Double resource collect
+Builder race condition
+Insufficient resource race
+Expired timer resolution
+Duplicate API retry
+
+Only ONE valid transaction must succeed when appropriate.
+
+==================================================
+DO NOT DO THESE
+==================================================
+
+DO NOT:
+
+- trust client resource values
+- store authoritative game state only in localStorage
+- keep one live timer per player
+- continuously update offline players
+- expose Redis publicly
+- expose PostgreSQL publicly
+- save the entire game state every second
+- return giant API payloads unnecessarily
+- create unlimited queues
+- create unlimited DB connections
+- use SELECT * everywhere
+- create WebSockets unnecessarily
+- put assets through game backend unnecessarily
+- commit secrets
+- claim 10,000 users are supported without testing
+- stop after writing documentation
+
+==================================================
+WORK PRIORITY
+==================================================
+
+P0:
+
+1. Inspect current architecture
+2. Establish server-authoritative state
+3. PostgreSQL schema
+4. transactions/concurrency protection
+5. authentication/security
+6. upgrade/resource/builder persistence
+7. production API
+
+P1:
+
+8. DB indexing/query optimization
+9. Redis caching/rate limiting
+10. Nginx
+11. deployment configuration
+12. backups
+13. monitoring/logging
+
+P2:
+
+14. load testing
+15. benchmark
+16. optimize discovered bottlenecks
+17. repeat tests
+
+P3:
+
+18. horizontal-scaling readiness
+19. deployment hardening
+20. documentation
+
+==================================================
+MANDATORY LOAD TEST ITERATION
+==================================================
+
+Do not perform only one benchmark.
+
+Use this cycle:
+
+implement
+→ benchmark
+→ locate bottleneck
+→ optimize
+→ benchmark again
+
+Continue until:
+
+- target performance is reached
+
+OR
+
+- the specified VPS becomes the proven limiting factor
+
+If the hardware limit is reached, report:
+
+- maximum stable concurrent users measured
+- maximum stable RPS measured
+- p95 latency
+- CPU utilization
+- RAM utilization
+- DB utilization
+- network utilization
+- exact first bottleneck
+
+==================================================
+ACCEPTANCE TESTS
+==================================================
+
+Before completion verify:
+
+1. Client cannot directly grant itself resources.
+
+2. Two simultaneous upgrade requests cannot double-spend resources.
+
+3. Gem instant finish cannot double-charge or double-complete.
+
+4. Builder state remains correct under concurrency.
+
+5. Restarting backend does not destroy timers.
+
+6. Restarting the VPS does not destroy game progression.
+
+7. Redis restart does not destroy authoritative progress.
+
+8. DB transactions prevent duplicate rewards.
+
+9. Production DB is not publicly exposed.
+
+10. Redis is not publicly exposed.
+
+11. API health checks work.
+
+12. Logs rotate correctly.
+
+13. Automated database backup works.
+
+14. Game startup API avoids unnecessary request waterfalls.
+
+15. Static assets can be separated from API traffic.
+
+16. Rate limiting protects abuse without breaking normal gameplay.
+
+17. Load tests can simulate thousands of users.
+
+18. Performance metrics are recorded.
+
+19. The project can run cleanly in the target production environment.
+
+20. There are no known critical race conditions in resource/upgrade flows.
+
+==================================================
+FINAL DELIVERABLE
+==================================================
+
+Do not return only generic recommendations.
+
+Actually implement as much of this production architecture as the current project permits.
+
+At the end provide:
+
+1. Architecture actually implemented
+2. Files changed
+3. Database schema/migrations created
+4. Deployment configuration created
+5. Security measures implemented
+6. Load test configuration
+7. Benchmark results
+8. Maximum measured stable load
+9. Current bottleneck
+10. Remaining work before public launch
+
+Be completely transparent.
+
+Never say:
+
+"supports 10,000 concurrent users"
+
+unless the load test actually demonstrates it.
+
+If 10,000 cannot be sustained on the single VPS,
+keep the architecture horizontally scalable so I can add another server later without rewriting the game.
+
+Start by inspecting the existing EMBERFALL KINGDOMS project now.
+
+Do not stop after creating a plan.
+
+Implement, run, test, benchmark, optimize, and verify.

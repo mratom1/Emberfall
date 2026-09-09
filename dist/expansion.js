@@ -1,4 +1,5 @@
-import * as M from './model.js?v=6.0.0';
+import {EXTRA_HEROES} from './content.js?v=8.0.0';
+import * as M from './model.js?v=8.0.0';
 
 export const EQUIPMENT={
  ironheart:{name:'Ironheart',icon:'shield',desc:'More hit points.',hp:.08},
@@ -21,7 +22,7 @@ export const SIEGE={
  airship:{name:'Ember Airship',icon:'cloud',desc:'Flies over walls and drops three Rangers when destroyed.',hp:1900,damage:140,speed:1.8,range:3.5,rate:1.4,color:0x976952,flying:true,cost:850,time:16,unlock:5},
  catapult:{name:'Siege Catapult',icon:'target',desc:'Long-range shells damage clusters of buildings.',hp:1500,damage:165,speed:.9,range:8,rate:2.2,color:0x927c56,splash:2.4,cost:1000,time:20,unlock:6}
 };
-export const HOME_HEROES=['king','queen','warden','champion','prince'];
+export const HOME_HEROES=['king','queen','prince','warden','champion',...Object.keys(EXTRA_HEROES)];
 export const BUILDER_TYPES=['mine','well','storage','camp','barracks','tower','cannon','mortar','tesla','air','wall','bomb','laboratory'];
 export const SEASON_TASKS=[{id:'victory',title:'Win 3 battles',stat:'wins',goal:3,xp:150},{id:'build',title:'Construct 3 buildings',stat:'built',goal:3,xp:120},{id:'training',title:'Train 15 troops',stat:'trained',goal:15,xp:100},{id:'upgrades',title:'Complete 3 upgrades',stat:'upgraded',goal:3,xp:130}];
 const month=now=>new Date(now).toISOString().slice(0,7),day=now=>new Date(now).toISOString().slice(0,10);
@@ -56,7 +57,7 @@ export function action(s,a,now){
  if(a.realm==='builder'&&!s.realm){ensure(s,now);const b=s.expansion.builder,allowed=['build','move','upgrade','train','research','collect','clear','skip','claim','machine-upgrade','train-batch','army-preset-save','army-preset-train','wall-upgrade'];if(!allowed.includes(a.type))return error('Use this action in your home village.');
   if(a.type==='build'&&!BUILDER_TYPES.includes(a.building))return error('This building belongs in your home village.');
   const target=b.buildings.find(x=>x.id===a.id);if(a.type==='upgrade'&&target?.level>=10)return error('Builder Base maximum level is 10.');
-  if(a.type==='machine-upgrade'){const h=b.heroes.machine,c=500*(h.level+1);if(h.finishAt)return error('Battle Machine is upgrading.');if(h.recoverAt>now)return error('Battle Machine is recovering.');if(h.level>=M.hallLevel(b)*5)return error('Upgrade Builder Hall first.');if(b.elixir<c)return error('Not enough builder elixir.');b.elixir-=c;h.finishAt=now+(20+h.level*8)*1000;return {ok:true};}
+  if(a.type==='machine-upgrade'){const h=b.heroes.machine,c=500*(h.level+1);if(h.finishAt)return error('Battle Machine is upgrading.');if(h.recoverAt>now)return error('Battle Machine is recovering.');if(h.level>=M.hallLevel(b)*5)return error('Upgrade Builder Hall first.');if(b.elixir<c)return error('Not enough builder elixir.');b.elixir-=c;h.startedAt=now;h.finishAt=now+(20+h.level*8)*1000;return {ok:true};}
   b.gems=s.gems;const r=M.applyAction(b,{...a,realm:undefined},now);s.gems=b.gems;return r;
  }
  if(s.realm)return undefined;ensure(s,now);const e=s.expansion;
@@ -103,7 +104,7 @@ export function createModeBattle(s,mode,now=Date.now()){
 }
 export function addPet(s,b,hero){const p=b.petStock?.[hero.type];if(!p)return;const d=PETS[p.type],boost=1+(p.level-1)*.15;b.units.push({id:'u'+b.units.length,type:p.type,pet:true,owner:hero.id,x:hero.x+1,z:hero.z,hp:d.hp*boost,maxHp:d.hp*boost,damage:d.damage*boost,cooldown:0,phase:0});delete b.petStock[hero.type];}
 export function deploySiege(s,b,type,x,z){
- if(!Object.hasOwn(SIEGE,type)||!b.siegeStock?.[type]||b.ended||b.siegeDeployed)return error('One siege machine can deploy per battle.');if(!Number.isFinite(x)||!Number.isFinite(z)||Math.max(Math.abs(x),Math.abs(z))<(b.bounds||8.7)||Math.max(Math.abs(x),Math.abs(z))>(b.bounds||8.7)+4.8)return error('Deploy outside the red border.');
+ if(!Object.hasOwn(SIEGE,type)||!b.siegeStock?.[type]||b.ended||b.siegeDeployed)return error('One siege machine can deploy per battle.');if(!M.canDeploy(b,x,z))return error('Deploy outside standing buildings or inside a cleared area.');
  const d=SIEGE[type],u={id:'u'+b.units.length,type,siege:true,x,z,hp:d.hp,maxHp:d.hp,damage:d.damage,cooldown:0,phase:0};b.units.push(u);b.siegeStock[type]--;wallet(s,b).expansion.siege[type]--;b.siegeDeployed=true;b.started=true;return {unit:u};
 }
 export function combatTick(b,dt){

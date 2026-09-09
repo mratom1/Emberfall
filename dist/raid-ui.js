@@ -1,6 +1,6 @@
-import * as R from './raids.js?v=6.0.0';
-import * as M from './model.js?v=6.0.0';
-import {escapeHtml as esc} from './features.js?v=6.0.0';
+import * as R from './raids.js?v=8.0.0';
+import * as M from './model.js?v=8.0.0';
+import {escapeHtml as esc} from './features.js?v=8.0.0';
 const n=v=>Math.floor(v||0).toLocaleString('en-US');
 const icon=id=>`<i data-lucide="${id}"></i>`;
 const button=(label,action,extra='')=>`<button class="btn btn-gold" data-raid="${action}" ${extra}>${label}</button>`;

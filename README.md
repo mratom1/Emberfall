@@ -1,6 +1,6 @@
 # Emberfall — Kingdoms at War
 
-The latest update adds hero damage/HP/DPS, visible progression at every level, trained camp units, continuous wall placement, random player/AI raids, symmetric 10% loot, attack/defense history, Gem Shields and weekly Gem Boxes. It also keeps the automatic landscape layout and fixes static preview startup. See [Raids and progression](docs/RAIDS_AND_PROGRESSION.md) for the exact rules and preview/server differences.
+Version 8 fixes mouse placement and adds clickable upgrade progress bars above buildings and heroes, Gem completion, 20 illustrated home heroes, Town Hall/Barracks unlocks, bridge-side land at Town Hall 3/7/11, 0.48–6.5× zoom, detailed rotating 3D model previews, deployment on cleared building footprints, and 250 purchasable country/territory flags. See [Village update](docs/VILLAGE_UPDATE_V8.md) and [Raids and progression](docs/RAIDS_AND_PROGRESSION.md) for exact rules and preview/server differences.
 
 Version 5.0.0 adds Google/Facebook accounts, six illustrated heroes, High/Ultra HD graphics, a redesigned landscape UI, and native Android, iOS and Windows projects. See [Accounts and apps](docs/ACCOUNTS_AND_APPS.md) for setup, build commands and signing requirements.
 
@@ -32,11 +32,11 @@ The launcher creates .env if necessary and starts the game. Docker stores player
 |---|---|
 | Landscape | Automatic landscape layout with mapped touch coordinates; fullscreen/orientation lock where supported |
 | Placement | Actual translucent 3D building, grid, blocked/valid footprint, drag/tap positioning, rotation, explicit confirmation |
-| Buildings | 20 types; Town Hall and building levels up to 15; unlock gates and timers; up to 5 builders |
+| Buildings | 20 functional building types plus country flag decorations; Town Hall and building levels up to 15; unlock gates and timers; up to 5 builders |
 | Obstacles | Tree clearing has a 42% chance of 1–6 gems; rocks give no gems; weekly Gem Box gives 25 |
 | Walls | Individual/batch upgrades, map selection, cost preview, gold or elixir, 15 distinct 3D levels, Town Hall caps |
 | Army | Three presets per village, deficit-only quick train, atomic batches, 8 troop types; Barracks unlocks; training queues; camp limits; Laboratory research |
-| Heroes | Five home heroes with portraits, HP/damage/DPS, changing 3D models at every level, camp presence, Town Hall gates, equipment, pets, recovery and abilities |
+| Heroes | 20 home heroes with portraits, HP/damage/DPS, changing 3D models at every level, camp presence, Town Hall gates, equipment, pets, recovery and abilities |
 | Builder Base | Independent village, resources, 10 building levels, army, raids and Battle Machine hero |
 | Equipment / pets | Eight equipment items, two slots per hero, four trainable and assignable companions |
 | Siege | Three buildable siege machines; one deployed per raid; ground/flying behavior and reinforcements |

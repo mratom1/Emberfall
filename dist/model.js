@@ -1,6 +1,8 @@
-import * as R from './raids.js?v=6.0.0';
-import * as Q from './quality.js?v=6.0.0';
-import * as X from './expansion.js?v=6.0.0';
+import {COUNTRY_CODES,FLAG_COST} from './flags.js?v=8.0.0';
+import {EXTRA_HEROES,unlockedLand,landContains} from './content.js?v=8.0.0';
+import * as R from './raids.js?v=8.0.0';
+import * as Q from './quality.js?v=8.0.0';
+import * as X from './expansion.js?v=8.0.0';
 export const SAVE_KEY = 'emberfall.kingdom.v1';
 export const TYPES = {
   hall: {name:'Town Hall',icon:'castle',desc:'The heart of your village. Upgrade to unlock stronger buildings and a larger army.',gold:0,elixir:0,size:3.7,hp:1600,max:1,time:30},
@@ -19,9 +21,10 @@ export const TROOPS = {
   giant:{name:'Stone Giant',icon:'mountain',desc:'A towering tank that targets defenses first.',cost:180,time:5,hp:920,damage:75,speed:1.4,range:1.2,rate:1.3,space:3,color:0x9d9989}
 };
 Object.assign(TYPES,{
+ flag:{name:'Country Flag',icon:'flag',desc:'A country flag on a decorative pole.',gold:200,elixir:0,size:.65,hp:1,max:30,time:0,decoration:true},
  laboratory:{name:'Laboratory',icon:'microscope',desc:'Research permanent troop upgrades. One research project at a time.',gold:1200,elixir:400,size:2.6,hp:850,max:1,time:20,unlock:2},
  forge:{name:'Spell Forge',icon:'wand-sparkles',desc:'Brew Thunder, Heal, Rage, and Freeze spells for battle.',gold:1500,elixir:500,size:2.4,hp:900,max:1,time:25,unlock:2},
- altar:{name:'Hero Hall',icon:'crown',desc:'Unlock and upgrade five immortal heroes and their battle abilities.',gold:1800,elixir:600,size:2.8,hp:1400,max:1,time:30,unlock:2},
+ altar:{name:'Hero Hall',icon:'crown',desc:'Unlock and upgrade 20 original heroes. Town Hall and Barracks upgrades open the roster.',gold:1800,elixir:600,size:2.8,hp:1400,max:1,time:30,unlock:2},
  mortar:{name:'Mortar',icon:'target',desc:'Long-range shells damage groups of ground troops.',gold:1100,elixir:100,size:2,hp:900,max:4,time:20,unlock:2},
  wizard:{name:'Arcane Tower',icon:'sparkles',desc:'Magic blasts damage nearby groups on the ground and in the air.',gold:1900,elixir:450,size:2,hp:1000,max:4,time:25,unlock:3},
  air:{name:'Sky Defender',icon:'radar',desc:'Powerful bolts target flying enemies.',gold:1300,elixir:200,size:1.8,hp:850,max:4,time:20,unlock:3},
@@ -40,6 +43,7 @@ Object.assign(TROOPS,{
 });
 export const DEFENSES={tower:{range:8.3,damage:24,rate:.9},cannon:{range:7,damage:45,rate:1.25,groundOnly:true},mortar:{range:11,damage:65,rate:2.8,splash:2.6,groundOnly:true},wizard:{range:7,damage:40,rate:1.3,splash:2},air:{range:10,damage:105,rate:1.1,airOnly:true},tesla:{range:7,damage:33,rate:.5},inferno:{range:8.5,damage:65,rate:.35}};
 export const HEROES={
+ ...EXTRA_HEROES,
  king:{name:'Ember King',icon:'crown',desc:'Frontline hero. Royal Fury heals and empowers nearby allies.',hp:2000,damage:100,speed:1.7,range:1.3,rate:1,unlock:2,color:0xc98544},
  queen:{name:'Moon Ranger',icon:'bow-arrow',desc:'Ranged hero. Moon Volley damages every standing defense.',hp:1300,damage:140,speed:2.1,range:5.6,rate:1,unlock:3,color:0x8768aa},
  prince:{name:'Dusk Prince',icon:'moon',desc:'Flying hero. Nightfall damages and freezes nearby defenses.',hp:1750,damage:125,speed:2.1,range:4.4,rate:1.1,unlock:4,color:0x6d619c,flying:true},
@@ -52,7 +56,8 @@ export const GEM_PACKS=[{id:'pouch',name:'Pouch of Gems',gems:500,cents:499},{id
 function heroState(){return Object.fromEntries(X.HOME_HEROES.map(k=>[k,{level:0,recoverAt:0}]));}
 export function seedObstacles(){return Array.from({length:22},(_,i)=>{const a=i/22*Math.PI*2,r=11.2+(i%3)*.65;return {id:'tree-'+i,type:i%5===0?'rock':'tree',x:Math.round(Math.cos(a)*r*2)/2,z:Math.round(Math.sin(a)*r*2)/2};});}
 export function troopUnlocked(s,type){return Object.hasOwn(TROOPS,type)&&troopLevel(s)>=(TROOPS[type]?.unlock||1);}
-export function heroMaxLevel(s,type){const d=HEROES[type];return d?Math.max(0,Math.min(d.builderOnly?50:50,(hallLevel(s)-d.unlock+1)*5)):0;}
+export function heroMaxLevel(s,type){const d=HEROES[type];if(!d||hallLevel(s)<d.unlock||troopLevel(s)<(d.barracks||1))return 0;return d.barracks?Math.min(50,hallLevel(s)*5,troopLevel(s)*5):Math.min(50,(hallLevel(s)-d.unlock+1)*5);}
+export function heroUnlocked(s,type){const d=HEROES[type];return !!d&&hallLevel(s)>=d.unlock&&troopLevel(s)>=(d.barracks||1)&&s.buildings.some(b=>b.type==='altar'&&!b.constructing);}
 export function unitDefinition(u){return u.hero?HEROES[u.type]:u.pet?X.PETS[u.type]:u.siege?X.SIEGE[u.type]:TROOPS[u.type];}
 export function heroCost(h){return {dark:80+Math.round(65*Math.pow(Math.max(1,h.level),1.4)),time:20+Math.max(1,h.level)*8};}
 export function skipCost(finishAt,now=Date.now()){return Math.max(1,Math.ceil((finishAt-now)/10000));}
@@ -61,8 +66,8 @@ export function beginResearch(s,type,now=Date.now()){
  if(s.researchQueue.length)return {error:'Your Laboratory is already researching.'};const level=s.research[type]||1;if(level>=Math.min(15,lab.level+2))return {error:'Upgrade the Laboratory to research further.'};const cost=250*level*level;if(s.elixir<cost)return {error:'Not enough elixir.'};s.elixir-=cost;s.researchQueue.push({type,finishAt:now+(20+level*12)*1000});return {ok:true};
 }
 export function upgradeHero(s,type,now=Date.now()){
- const def=HEROES[type],h=s.heroes[type];if(!Object.hasOwn(HEROES,type)||!h)return {error:'Unknown hero.'};if(!s.buildings.some(b=>b.type==='altar'&&!b.finishAt)||hallLevel(s)<def.unlock)return {error:'Requires Hero Hall and Town Hall '+def.unlock+'.'};
- if(h.finishAt)return {error:'Hero upgrade already in progress.'};if(h.recoverAt>now)return {error:'Your hero is recovering.'};if(h.level>=heroMaxLevel(s,type))return {error:'Upgrade Town Hall to raise this hero further.'};const c=heroCost(h);if(s.dark<c.dark)return {error:'Not enough dark elixir.'};s.dark-=c.dark;h.finishAt=now+c.time*1000;return {ok:true};
+ const def=HEROES[type],h=s.heroes[type];if(!Object.hasOwn(HEROES,type)||!h)return {error:'Unknown hero.'};if(!heroUnlocked(s,type))return {error:'Requires Hero Hall, Town Hall '+def.unlock+' and Barracks '+(def.barracks||1)+'.'};
+ if(h.finishAt)return {error:'Hero upgrade already in progress.'};if(h.recoverAt>now)return {error:'Your hero is recovering.'};if(h.level>=heroMaxLevel(s,type))return {error:'Upgrade Town Hall and Barracks to raise this hero further.'};const c=heroCost(h);if(s.dark<c.dark)return {error:'Not enough dark elixir.'};s.dark-=c.dark;h.startedAt=now;h.finishAt=now+c.time*1000;return {ok:true};
 }
 export function brew(s,type,now=Date.now()){
  const d=SPELLS[type],forge=s.buildings.find(b=>b.type==='forge'&&!b.finishAt);if(!Object.hasOwn(SPELLS,type)||!forge||forge.level<d.unlock)return {error:'Upgrade your Spell Forge to unlock this spell.'};if(Object.values(s.spells).reduce((a,b)=>a+b,0)+s.spellQueue.length>=12)return {error:'Spell storage is full (12).'};if(s.elixir<d.cost)return {error:'Not enough elixir.'};s.elixir-=d.cost;s.spellQueue.push({type,finishAt:Math.max(now,s.spellQueue.at(-1)?.finishAt||0)+d.time*1000});return {ok:true};
@@ -71,22 +76,23 @@ export function clearObstacle(s,id,now=Date.now(),random=Math.random){const o=s.
 export function advanceProgression(s,now,events=[]){
  s.obstacles??=seedObstacles();s.heroes??=heroState();s.research??={};s.researchQueue??=[];s.spells??={thunder:2,heal:0,rage:0,freeze:0};s.spellQueue??=[];s.gems??=100;s.dark??=0;s.builders??=2;
  for(const o of s.obstacles.filter(o=>o.finishAt&&o.finishAt<=now)){s.gems+=o.gemReward||0;if(o.type==='gem-box')s.nextGemBoxAt=now+R.WEEK;events.push({kind:'obstacle',gems:o.gemReward||0});}s.obstacles=s.obstacles.filter(o=>!o.finishAt||o.finishAt>now);R.weeklyBox(s,now,events);
- for(const [type,h]of Object.entries(s.heroes))if(h.finishAt&&h.finishAt<=now){h.level++;delete h.finishAt;events.push({kind:'hero',type});}
+ for(const [type,h]of Object.entries(s.heroes))if(h.finishAt&&h.finishAt<=now){h.level++;delete h.finishAt;delete h.startedAt;events.push({kind:'hero',type});}
  for(const q of s.researchQueue.filter(q=>q.finishAt<=now)){s.research[q.type]=(s.research[q.type]||1)+1;events.push({kind:'research',type:q.type});}s.researchQueue=s.researchQueue.filter(q=>q.finishAt>now);
  for(const q of s.spellQueue.filter(q=>q.finishAt<=now)){s.spells[q.type]=(s.spells[q.type]||0)+1;events.push({kind:'spell',type:q.type});}s.spellQueue=s.spellQueue.filter(q=>q.finishAt>now);
  if(now>=(s.nextObstacleAt||now+1)){if(s.obstacles.length<28){for(let i=0;i<40;i++){const a=Math.random()*Math.PI*2,r=11+Math.random()*2.5,x=Math.round(Math.cos(a)*r*2)/2,z=Math.round(Math.sin(a)*r*2)/2;if(canPlace(s,'bomb',x,z)){s.obstacles.push({id:'tree-'+now,type:'tree',x,z});events.push({kind:'regrow'});break;}}}s.nextObstacleAt=now+1800000;}
 }
 export function deployHero(s,battle,type,x,z,now=Date.now()){
- const root=s;s=X.wallet(s,battle);const level=battle.heroStock?.[type],def=HEROES[type];if(!level||!Object.hasOwn(HEROES,type)||battle.ended)return {error:'Hero is not ready.'};if(!Number.isFinite(x)||!Number.isFinite(z)||Math.max(Math.abs(x),Math.abs(z))<(battle.bounds||8.7)||Math.max(Math.abs(x),Math.abs(z))>(battle.bounds||8.7)+4.8)return {error:'Deploy outside the red border.'};
+ const root=s;s=X.wallet(s,battle);const level=battle.heroStock?.[type],def=HEROES[type];if(!level||!Object.hasOwn(HEROES,type)||battle.ended)return {error:'Hero is not ready.'};if(!canDeploy(battle,x,z))return {error:'Deploy outside standing buildings or inside a cleared area.'};
  const stats=X.heroStats(s,type,level),u={id:'u'+battle.units.length,type,hero:true,level,x,z,hp:stats.hp,maxHp:stats.hp,damage:stats.damage,speed:stats.speed,range:stats.range,regen:stats.regen,freeze:stats.freeze,wardPower:stats.ward,cooldown:0,phase:0,abilityUsed:false};battle.units.push(u);X.addPet(root,battle,u);battle.heroStock[type]=0;battle.started=true;s.heroes[type].recoverAt=now+180000;return {unit:u};
 }
-export function heroAbility(battle,type){const u=battle.units.find(u=>u.hero&&u.type===type&&u.hp>0&&!u.abilityUsed);if(!u||battle.ended)return {error:'Deploy a living hero before using this ability.'};u.abilityUsed=true;X.extraAbility(battle,u);if(type==='champion'){const targets=battle.buildings.filter(b=>b.hp>0&&DEFENSES[b.type]).sort((a,b)=>Math.hypot(a.x-u.x,a.z-u.z)-Math.hypot(b.x-u.x,b.z-u.z)).slice(0,4);for(const b of targets)b.hp=Math.max(0,b.hp-u.damage*3);}else if(type==='prince'){for(const b of battle.buildings)if(Math.hypot(b.x-u.x,b.z-u.z)<7){b.hp=Math.max(0,b.hp-u.damage*2);b.frozen=8;}}else if(type==='queen'){for(const b of battle.buildings)if(DEFENSES[b.type])b.hp=Math.max(0,b.hp-260);}else if(type==='warden'){for(const a of battle.units)if(a.hp>0)a.hp=Math.min(a.maxHp,a.hp+a.maxHp*.5);}else{for(const a of battle.units)if(a.hp>0&&Math.hypot(a.x-u.x,a.z-u.z)<5){a.hp=Math.min(a.maxHp,a.hp+250);a.rage=10;}}return {ok:true};}
-export function castSpell(s,battle,type,x,z){s=X.wallet(s,battle);if(!Object.hasOwn(SPELLS,type)||battle.ended||!Number.isFinite(x)||!Number.isFinite(z)||Math.max(Math.abs(x),Math.abs(z))>(battle.bounds||8.7)+3)return {error:'Choose a target in the village.'};if((battle.spellStock[type]||0)<1)return {error:'No spell remaining.'};battle.spellStock[type]--;s.spells[type]--;battle.started=true;
+export function heroAbility(battle,type){const u=battle.units.find(u=>u.hero&&u.type===type&&u.hp>0&&!u.abilityUsed);if(!u||battle.ended)return {error:'Deploy a living hero before using this ability.'};u.abilityUsed=true;X.extraAbility(battle,u);const ability=HEROES[type].ability||({champion:'shield',prince:'freeze',queen:'volley',warden:'heal'}[type]);if(ability==='shield'){const targets=battle.buildings.filter(b=>b.hp>0&&DEFENSES[b.type]).sort((a,b)=>Math.hypot(a.x-u.x,a.z-u.z)-Math.hypot(b.x-u.x,b.z-u.z)).slice(0,4);for(const b of targets)b.hp=Math.max(0,b.hp-u.damage*3);}else if(ability==='freeze'||ability==='burst'){for(const b of battle.buildings)if(Math.hypot(b.x-u.x,b.z-u.z)<7){b.hp=Math.max(0,b.hp-u.damage*2);if(ability==='freeze')b.frozen=8;}}else if(ability==='volley'){for(const b of battle.buildings)if(DEFENSES[b.type])b.hp=Math.max(0,b.hp-260);}else if(ability==='heal'){for(const a of battle.units)if(a.hp>0)a.hp=Math.min(a.maxHp,a.hp+a.maxHp*.5);}else{for(const a of battle.units)if(a.hp>0&&Math.hypot(a.x-u.x,a.z-u.z)<5){a.hp=Math.min(a.maxHp,a.hp+250);a.rage=10;}}return {ok:true};}
+export function castSpell(s,battle,type,x,z){s=X.wallet(s,battle);if(!Object.hasOwn(SPELLS,type)||battle.ended||!Number.isFinite(x)||!Number.isFinite(z)||!(battle.land||[{x1:-(battle.bounds||8.7),x2:battle.bounds||8.7,z1:-(battle.bounds||8.7),z2:battle.bounds||8.7}]).some(r=>x>=r.x1-3&&x<=r.x2+3&&z>=r.z1-3&&z<=r.z2+3))return {error:'Choose a target in the village.'};if((battle.spellStock[type]||0)<1)return {error:'No spell remaining.'};battle.spellStock[type]--;s.spells[type]--;battle.started=true;
  if(type==='thunder'){strike(battle,x,z);}else if(type==='freeze'){for(const b of battle.buildings)if(Math.hypot(b.x-x,b.z-z)<3.8)b.frozen=6;}else battle.effects.push({type,x,z,remaining:8});return {ok:true};}
 function tickEffects(b,dt){for(const u of b.units)u.rage=Math.max(0,(u.rage||0)-dt);for(const s of b.buildings)s.frozen=Math.max(0,(s.frozen||0)-dt);for(const e of b.effects||[]){e.remaining-=dt;for(const u of b.units)if(u.hp>0&&Math.hypot(u.x-e.x,u.z-e.z)<4){if(e.type==='heal')u.hp=Math.min(u.maxHp,u.hp+65*dt);if(e.type==='rage')u.rage=.2;}}b.effects=(b.effects||[]).filter(e=>e.remaining>0);}
 function segmentNear(a,b,p,r){const dx=b.x-a.x,dz=b.z-a.z,d=dx*dx+dz*dz;if(d<.01)return false;const t=((p.x-a.x)*dx+(p.z-a.z)*dz)/d;return t>0&&t<1&&Math.hypot(a.x+t*dx-p.x,a.z+t*dz-p.z)<r;}
 export function applyAction(s,a,now=Date.now(),random=Math.random){
  advance(s,now);if(!a||typeof a.type!=='string')return {error:'Invalid action.'};const raidAction=R.action(s,a,now);if(raidAction)return raidAction;const expanded=X.action(s,a,now);if(expanded)return expanded;const quality=Q.action(s,a,now);if(quality)return quality;
+ if(a.type.startsWith('flag-'))return flagAction(s,a,now);
  if(a.type==='build'){const r=build(s,a.building,a.x,a.z,now);if(r.building)r.building.rotation=(a.rotation||0)%4;return r;}
  if(a.type==='move'){const b=s.buildings.find(b=>b.id===a.id);if(!b||b.finishAt||!canPlace(s,b.type,a.x,a.z,b.id))return {error:'This placement is blocked.'};b.x=a.x;b.z=a.z;b.rotation=(a.rotation||0)%4;return {ok:true};}
  if(a.type==='upgrade'){const target=s.buildings.find(b=>b.id===a.id);if(target?.type==='wall')return Q.action(s,{type:'wall-upgrade',ids:[target.id],currency:a.currency||'gold'},now);return upgrade(s,target,now);}
@@ -123,7 +129,7 @@ export function initialState(now=Date.now()){
     {id:'cottage',type:'cottage',x:-6.5,z:-1,level:1}
   ]};
 }
-export function capacity(s){return 5000+s.buildings.filter(b=>b.type==='storage'&&!b.constructing).reduce((n,b)=>n+b.level*b.level*3000,0);}
+export function capacity(s){return 5000+s.buildings.filter(b=>b.type==='storage'&&!b.constructing).reduce((n,b)=>n+b.level*b.level*3000*Math.max(1,(b.level-1)/3),0);}
 export function armyCapacity(s){return 24+s.buildings.filter(b=>b.type==='camp'&&!b.constructing).reduce((n,b)=>n+b.level*6,0);}
 export function armySize(army){return Object.entries(TROOPS).reduce((n,[k,v])=>n+(army[k]||0)*v.space,0);}
 export function queueSize(s){return s.queue.reduce((n,q)=>n+TROOPS[q.type].space,0);}
@@ -135,7 +141,7 @@ export function productionCapacity(b){return b.level*600;}
 export function upgradeCost(b){if(b.type==='wall')return {gold:Math.round(TYPES.wall.gold*Math.pow(1.7,b.level)),elixir:0,time:0};return {gold:Math.round((TYPES[b.type].gold||850)*Math.pow(1.7,b.level)),elixir:b.type==='hall'?500*b.level:Math.round((TYPES[b.type].elixir||50)*Math.pow(1.6,b.level)),time:(b.type==='hall'?30:15)*b.level};}
 export function canPlace(s,type,x,z,ignoreId){
   if(!Object.hasOwn(TYPES,type))return false;const size=TYPES[type].size;
-  return Number.isFinite(x)&&Number.isFinite(z)&&Math.abs(x)+size/2<14.5&&Math.abs(z)+size/2<14.5&&!s.buildings.some(b=>b.id!==ignoreId&&Math.abs(b.x-x)<(TYPES[b.type].size+size)/2+(type==='wall'&&b.type==='wall'?.02:.35)&&Math.abs(b.z-z)<(TYPES[b.type].size+size)/2+(type==='wall'&&b.type==='wall'?.02:.35))&&!(s.obstacles||[]).some(o=>Math.abs(o.x-x)<size/2+.75&&Math.abs(o.z-z)<size/2+.75);
+  return Number.isFinite(x)&&Number.isFinite(z)&&landContains(unlockedLand(s),x,z,size/2)&&!s.buildings.some(b=>b.id!==ignoreId&&Math.abs(b.x-x)<(TYPES[b.type].size+size)/2+(type==='wall'&&b.type==='wall'?.02:.25)&&Math.abs(b.z-z)<(TYPES[b.type].size+size)/2+(type==='wall'&&b.type==='wall'?.02:.25))&&!(s.flags||[]).some(f=>f.id!==ignoreId&&Math.abs(f.x-x)<size/2+.4&&Math.abs(f.z-z)<size/2+.4)&&!(s.obstacles||[]).some(o=>Math.abs(o.x-x)<size/2+.75&&Math.abs(o.z-z)<size/2+.75);
 }
 export function nextWallSpot(s,x,z,rotation=0){
  const directions=rotation%2?[[0,1],[1,0],[0,-1],[-1,0]]:[[1,0],[0,1],[-1,0],[0,-1]];
@@ -143,25 +149,25 @@ export function nextWallSpot(s,x,z,rotation=0){
 }
 export function build(s,type,x,z,now=Date.now()){
   const def=TYPES[type];
-  if(!Object.hasOwn(TYPES,type)||['hall','cottage'].includes(type))return {error:'That building cannot be placed.'};
+  if(!Object.hasOwn(TYPES,type)||['hall','cottage','flag'].includes(type))return {error:'That building cannot be placed.'};
   if(hallLevel(s)<(def.unlock||1))return {error:'Requires Town Hall level '+def.unlock+'.'};
   if(s.buildings.filter(b=>b.type===type).length>=def.max)return {error:'You have reached the building limit.'};
   if(type!=='wall'&&freeBuilders(s)<1)return {error:'Both builders are busy. An upgrade will finish soon.'};
   if(!canPlace(s,type,x,z))return {error:'Choose an empty tile inside the clearing.'};
   if(s.gold<def.gold||s.elixir<def.elixir)return {error:'Not enough resources. Collect from your village or win a raid.'};
   s.gold-=def.gold;s.elixir-=def.elixir;
-  const b={id:'b'+now.toString(36)+Math.floor(Math.random()*9999).toString(36),type,x,z,level:1,stored:0,constructing:type!=='wall',...(type==='wall'?{}:{finishAt:now+def.time*1000})};
+  const b={id:'b'+now.toString(36)+Math.floor(Math.random()*9999).toString(36),type,x,z,level:1,stored:0,constructing:type!=='wall',...(type==='wall'?{}:{startedAt:now,finishAt:now+def.time*1000})};
   s.buildings.push(b);s.stats.built++;
   return {building:b};
 }
 export function upgrade(s,b,now=Date.now()){
   if(!b||b.finishAt)return {error:'This building is already under construction.'};
-  if(b.type==='cottage')return {error:'Hire additional builders from the Gem Treasury.'};
+
   if(b.level>=(b.type==='hall'?15:15))return {error:'Maximum level reached.'};
   if(b.type!=='hall'&&b.level>=hallLevel(s)+1)return {error:'Upgrade your Town Hall first.'};
   if(b.type!=='wall'&&freeBuilders(s)<1)return {error:'All builders are busy.'};
   const c=upgradeCost(b);if(s.gold<c.gold||s.elixir<c.elixir)return {error:'Not enough resources for this upgrade.'};
-  s.gold-=c.gold;s.elixir-=c.elixir;if(b.type==='wall'){b.level++;s.stats.upgraded++;}else{b.finishAt=now+c.time*1000;b.constructing=false;}
+  s.gold-=c.gold;s.elixir-=c.elixir;if(b.type==='wall'){b.level++;s.stats.upgraded++;}else{b.startedAt=now;b.finishAt=now+c.time*1000;b.constructing=false;}
   return {ok:true};
 }
 export function train(s,type,now=Date.now()){
@@ -178,7 +184,7 @@ export function train(s,type,now=Date.now()){
 export function advance(s,now=Date.now()){
   const events=[];const from=s.lastTick||now;const elapsed=Math.min(8*3600,Math.max(0,(now-from)/1000));
   for(const b of s.buildings){
-    if(b.finishAt&&now>=b.finishAt){if(!b.constructing){b.level++;s.stats.upgraded++;}b.constructing=false;delete b.finishAt;events.push({kind:'building',building:b});}
+    if(b.finishAt&&now>=b.finishAt){if(!b.constructing){b.level++;s.stats.upgraded++;}b.constructing=false;delete b.finishAt;delete b.startedAt;events.push({kind:'building',building:b});}
     if(producerRate(b)&&!b.finishAt)b.stored=Math.min(productionCapacity(b),(b.stored||0)+producerRate(b)*elapsed);
   }
   const done=s.queue.filter(q=>q.finishAt<=now);s.queue=s.queue.filter(q=>q.finishAt>now);
@@ -216,12 +222,17 @@ export function enemyBuildings(index){
   return list.map(b=>({...b,maxHp:Math.round(TYPES[b.type].hp*(.67+index*.085)),hp:Math.round(TYPES[b.type].hp*(.67+index*.085)),cooldown:Math.random()*.8}));
 }
 export function createBattle(s,index){return X.enrichBattle(s,{enemy:enemyDef(index),buildings:enemyBuildings(index),units:[],remaining:{...s.army},deployed:{guardian:0,ranger:0,giant:0},started:false,elapsed:0,duration:150,bounds:8.7,spells:s.spells?.thunder||0,spellStock:{...s.spells},heroStock:Object.fromEntries(Object.entries(s.heroes||{}).filter(([k,h])=>h.level>0&&!h.finishAt&&!(h.recoverAt>Date.now())).map(([k,h])=>[k,h.level])),effects:[],ended:false,stats:{destroyed:0,stars:0,percent:0}});}
+export function canDeploy(battle,x,z){
+ if(!Number.isFinite(x)||!Number.isFinite(z)||battle.ended)return false;
+ const regions=battle.land||[{x1:-(battle.bounds||8.7),x2:battle.bounds||8.7,z1:-(battle.bounds||8.7),z2:battle.bounds||8.7}];
+ if(!regions.some(r=>x>=r.x1-4.8&&x<=r.x2+4.8&&z>=r.z1-4.8&&z<=r.z2+4.8))return false;
+ if(battle.buildings.some(b=>b.hp>0&&Math.abs(b.x-x)<TYPES[b.type].size/2+1&&Math.abs(b.z-z)<TYPES[b.type].size/2+1))return false;
+ return !landContains(regions,x,z)||battle.buildings.some(b=>b.hp<=0&&Math.abs(b.x-x)<=TYPES[b.type].size/2+1&&Math.abs(b.z-z)<=TYPES[b.type].size/2+1);
+}
 export function deploy(s,battle,type,x,z){
   s=X.wallet(s,battle);
   if(battle.ended||!Object.hasOwn(TROOPS,type)||!(battle.remaining[type]>0))return {error:'No troops of this type remaining.'};
-  if(!Number.isFinite(x)||!Number.isFinite(z))return {error:'Choose a valid deployment tile.'};
-  if(Math.abs(x)<(battle.bounds||8.7)&&Math.abs(z)<(battle.bounds||8.7))return {error:'Deploy outside the red border.'};
-  if(Math.abs(x)>(battle.bounds||8.7)+4.8||Math.abs(z)>(battle.bounds||8.7)+4.8)return {error:'Deploy closer to the enemy village.'};
+  if(!canDeploy(battle,x,z))return {error:'Deploy outside standing buildings or inside a cleared area.'};
   const def=TROOPS[type],boost=1+((s.research?.[type]||1)-1)*.18;
   const unit={id:'u'+battle.units.length,type,level:s.research?.[type]||1,x,z,hp:def.hp*boost,maxHp:def.hp*boost,damage:def.damage*boost,cooldown:Math.random()*.3,phase:Math.random()*6.28};
   battle.units.push(unit);battle.remaining[type]--;battle.deployed[type]=(battle.deployed[type]||0)+1;s.army[type]--;battle.started=true;
@@ -267,4 +278,11 @@ export function settleBattle(s,battle){
   if(battle.stats.stars){s.stats.wins++;if(!battle.pvp&&!battle.special)s.cleared[battle.enemy.index]=Math.max(s.cleared[battle.enemy.index]||0,battle.stats.stars);}
   const dark=battle.raid?Math.floor((battle.enemy.dark||0)*ratio):battle.stats.stars?Math.floor((battle.enemy.dark??30)*ratio):0;s.dark=(s.dark||0)+dark;for(const u of battle.units.filter(u=>u.hero)){const h=s.heroes[u.type];if(h)h.recoverAt=Date.now()+30000;}
   battle.result={gold,elixir,dark,glory,...battle.stats,won:battle.stats.stars>0};X.reward(root,battle,battle.result);R.recordAttack(root,battle,battle.result);return battle.result;
+}
+
+export function flagAction(s,a,now=Date.now()){
+ if(s.realm)return {error:'Flags belong in the home village.'};s.flags??=[];
+ if(a.type==='flag-buy'){if(!COUNTRY_CODES.has(a.code))return {error:'Choose a country from the flag shop.'};if(s.flags.length>=30)return {error:'A village can display 30 flags.'};if(!canPlace(s,'flag',a.x,a.z))return {error:'Choose an open tile for the flag.'};if(s.gold<FLAG_COST)return {error:'Not enough gold.'};s.gold-=FLAG_COST;const flag={id:'flag-'+now+'-'+Math.floor(Math.random()*1e8),code:a.code,x:a.x,z:a.z};s.flags.push(flag);return {ok:true,flag};}
+ if(a.type==='flag-move'){const flag=s.flags.find(f=>f.id===a.id);if(!flag||!canPlace(s,'flag',a.x,a.z,flag.id))return {error:'Choose an open tile for the flag.'};flag.x=a.x;flag.z=a.z;return {ok:true,flag};}
+ return {error:'Unknown flag action.'};
 }

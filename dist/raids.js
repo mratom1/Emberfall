@@ -1,5 +1,5 @@
-import {unlockedLand} from './content.js?v=8.0.0';
-import * as M from './model.js?v=8.0.0';
+import {unlockedLand} from './content.js?v=9.0.0';
+import * as M from './model.js?v=9.0.0';
 
 export const WEEK = 7 * 86400000;
 export const DEFENSE_INTERVAL = 6 * 3600000;
@@ -68,7 +68,7 @@ export function configureBattle(b,defender) {
   const ds=defender.state;b.land=unlockedLand(ds);b.flags=ds.flags||[];b.pvp=true;b.raid=true;b.bounds=15.2;
   b.enemy={index:0,name:defender.name,kind:defender.kind||'player',hall:M.hallLevel(ds),...availableLoot(ds),glory:30};
   b.defenderId=defender.id;b.defenderBalance=Object.fromEntries(currencies.map(k=>[k,ds[k]||0]));
-  b.buildings=ds.buildings.filter(x=>!x.constructing).map(x=>({...x,hp:M.TYPES[x.type].hp*(1+(x.level-1)*.25),maxHp:M.TYPES[x.type].hp*(1+(x.level-1)*.25),cooldown:0}));
+  b.buildings=ds.buildings.filter(x=>!x.constructing).map(x=>({...x,hp:M.buildingHp(x),maxHp:M.buildingHp(x),cooldown:0}));
   return b;
 }
 export function createBotBattle(s,random=Math.random,now=Date.now()) {

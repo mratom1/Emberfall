@@ -1,6 +1,6 @@
 # Emberfall — Kingdoms at War
 
-Version 8 fixes mouse placement and adds clickable upgrade progress bars above buildings and heroes, Gem completion, 20 illustrated home heroes, Town Hall/Barracks unlocks, bridge-side land at Town Hall 3/7/11, 0.48–6.5× zoom, detailed rotating 3D model previews, deployment on cleared building footprints, and 250 purchasable country/territory flags. See [Village update](docs/VILLAGE_UPDATE_V8.md) and [Raids and progression](docs/RAIDS_AND_PROGRESSION.md) for exact rules and preview/server differences.
+Version 9 adds matching 3D pictures throughout Build, Army and Heroes, and stronger level-based building HP with [recorded combat comparisons](docs/PICTURES_AND_BALANCE_V9.md). Version 8 fixes mouse placement and adds clickable upgrade progress bars above buildings and heroes, Gem completion, 20 illustrated home heroes, Town Hall/Barracks unlocks, bridge-side land at Town Hall 3/7/11, 0.48–6.5× zoom, detailed rotating 3D model previews, deployment on cleared building footprints, and 250 purchasable country/territory flags. See [Village update](docs/VILLAGE_UPDATE_V8.md) and [Raids and progression](docs/RAIDS_AND_PROGRESSION.md) for exact rules and preview/server differences.
 
 Version 5.0.0 adds Google/Facebook accounts, six illustrated heroes, High/Ultra HD graphics, a redesigned landscape UI, and native Android, iOS and Windows projects. See [Accounts and apps](docs/ACCOUNTS_AND_APPS.md) for setup, build commands and signing requirements.
 

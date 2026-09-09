@@ -4,6 +4,8 @@ Keep this file and `PRODUCTION_REQUIREMENTS.txt` with the project until the publ
 
 ## Current game update
 
+Version 9 adds model-rendered pictures to Build, Army, owned buildings and battle deployment cards. Hero pictures render the identical world models at the shown level. Building durability is shared across UI, player/bot raids and clan battles; deterministic before/after combat evidence is in `benchmarks/combat-v9.json`. Defense upgrades now scale firing power and target behavior; structural model tiers add architecture/armor rather than only recoloring. Wall upgrades show current/next HP. The PostgreSQL/Redis/public-load work below remains open.
+
 Implemented in the version 8 source: pinned mouse placement, continued wall placement, 20 illustrated home heroes plus Battle Machine, Town Hall/Barracks hero gates, level-dependent 3D models, 0.48–6.5× zoom, 3D inspection, bridge land at Town Hall 3/7/11, Town Hall 15, cleared-footprint deployment, 250 country flags, and clickable building/hero upgrade time bars with authoritative Gem finish actions.
 
 Verification on 2026-09-09: all 99 existing and new automated checks passed locally. The pointer event harness and game/economy tests cover the reported regressions. Device/browser visual acceptance remains unverified. Release publishing and source synchronization must be checked against the latest commit.

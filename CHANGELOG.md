@@ -1,3 +1,15 @@
+# Emberfall v9.0.0
+
+- Defense levels now increase damage/fire rate/range; splash targets groups, Tesla chains and Inferno ramps. Town Hall weapon unlocks at 7. Strategy regression: same 24 Rangers score 0 stars clustered versus 2 when flanking.
+- Structural tiers add keeps, annexes, buttresses, weapon platforms, larger armor, helmets/capes and fortified wall thickness/height. Wall single/batch upgrades show current/next HP.
+- Combat comparisons expanded to 96 cases; defensive wins and partial victories are recorded.
+
+- Build, Army, owned-building and battle troop cards now show pictures rendered from the actual village/battle 3D model and current level. Hero cards use that same model pipeline, replacing portrait illustrations that differed from gameplay.
+- A single shared preview renderer, two queued pictures per frame and a bounded 96-picture cache avoid creating a WebGL context per card.
+- Fixed Build's new-building level label and added HP/army damage information.
+- Shared defender HP grows with building level to account for larger armies and 20 heroes. Level 1 retains its original HP; existing active battles retain their saved HP. New campaign, human/bot raid and clan battle HP follow the shared progression.
+- Deterministic before/after combat simulations include Town Hall 3/7/11/15, three seeds, developing/maxed heroes and legal maximum camp capacity. This is combat tuning evidence, not a public-player load benchmark.
+
 # Emberfall v8.0.0
 
 - Mouse placement pins the chosen ground position while moving to Confirm; click, drag, repeat-wall placement and pinch zoom share the corrected coordinates.

@@ -1,4 +1,4 @@
-import * as M from './model.js?v=8.0.0';
+import * as M from './model.js?v=9.0.0';
 
 export const PRESET_SLOTS = 3;
 const error = message => ({error: message});

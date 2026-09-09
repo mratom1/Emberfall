@@ -20,7 +20,7 @@ export function createFrontiers({db,M,getUser,stateOf,persist,fail}){
  function requireClan(user){if(!user.clan_id||!getClan(user.clan_id))fail('Join a clan first.');return getClan(user.clan_id);}
  function requireLeader(user){const clan=requireClan(user);if(clan.owner_id!==user.id)fail('Your clan leader controls this action.');return clan;}
  function activeWar(clanId,now){for(const row of db.prepare("SELECT id FROM wars WHERE (clan_a=? OR clan_b=?) AND status!='ended'").all(clanId,clanId)){const w=readWar(row.id,now);if(w.status!=='ended')return w;}return null;}
- function battleFrom(s,buildings,name,special){const b=M.createBattle(s,0);b.special=special;b.bounds=15.2;b.enemy={index:0,name,gold:0,elixir:0,dark:0,glory:0};b.buildings=buildings.map(v=>({...v,hp:v.hp??M.TYPES[v.type].hp*(1+(v.level-1)*.25),maxHp:v.maxHp??M.TYPES[v.type].hp*(1+(v.level-1)*.25),cooldown:0}));return b;}
+ function battleFrom(s,buildings,name,special){const b=M.createBattle(s,0);b.special=special;b.bounds=15.2;b.enemy={index:0,name,gold:0,elixir:0,dark:0,glory:0};b.buildings=buildings.map(v=>({...v,hp:v.hp??M.buildingHp(v),maxHp:v.maxHp??M.buildingHp(v),cooldown:0}));return b;}
  function district(c){if(!c.raid.buildings)c.raid.buildings=M.enemyBuildings(c.raid.district+2+c.raid.conquered).map(b=>({...b,hp:b.maxHp}));return c.raid.buildings;}
  function read(user,now){
   const clans=db.prepare('SELECT id,name,owner_id FROM clans ORDER BY name LIMIT 80').all();

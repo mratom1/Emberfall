@@ -1,8 +1,8 @@
-import {COUNTRY_CODES,FLAG_COST} from './flags.js?v=8.0.0';
-import {EXTRA_HEROES,unlockedLand,landContains} from './content.js?v=8.0.0';
-import * as R from './raids.js?v=8.0.0';
-import * as Q from './quality.js?v=8.0.0';
-import * as X from './expansion.js?v=8.0.0';
+import {COUNTRY_CODES,FLAG_COST} from './flags.js?v=9.0.0';
+import {EXTRA_HEROES,unlockedLand,landContains} from './content.js?v=9.0.0';
+import * as R from './raids.js?v=9.0.0';
+import * as Q from './quality.js?v=9.0.0';
+import * as X from './expansion.js?v=9.0.0';
 export const SAVE_KEY = 'emberfall.kingdom.v1';
 export const TYPES = {
   hall: {name:'Town Hall',icon:'castle',desc:'The heart of your village. Upgrade to unlock stronger buildings and a larger army.',gold:0,elixir:0,size:3.7,hp:1600,max:1,time:30},
@@ -129,6 +129,17 @@ export function initialState(now=Date.now()){
     {id:'cottage',type:'cottage',x:-6.5,z:-1,level:1}
   ]};
 }
+// Fixed defender-level durability. Never depends on client claims or the incoming army.
+export function defenseStats(b){
+ const level=Math.max(1,Math.min(15,Math.floor(b.level)||1)),n=level-1;
+ const base=DEFENSES[b.type]||(b.type==='hall'&&level>=7?{range:8,damage:35,rate:1.5,splash:1.8}:null);if(!base)return null;
+ return {...base,damage:Math.round(base.damage*(1+.22*n+.035*n*n)),rate:base.rate/(1+.025*n),range:base.range+Math.min(1.4,n*.1),splash:base.splash?base.splash+Math.min(.6,n*.045):0,chain:b.type==='tesla'&&level>=7?Math.min(3,1+Math.floor((level-4)/3)):1};
+}
+export function buildingHp(b){
+ const d=TYPES[b.type];if(!d)return 0;const level=Math.max(1,Math.min(15,Math.floor(b.level)||1)),n=level-1;
+ const fortification=1+.24*n+.04*n*n;
+ return Math.round(d.hp*(1+.25*n)*fortification);
+}
 export function capacity(s){return 5000+s.buildings.filter(b=>b.type==='storage'&&!b.constructing).reduce((n,b)=>n+b.level*b.level*3000*Math.max(1,(b.level-1)/3),0);}
 export function armyCapacity(s){return 24+s.buildings.filter(b=>b.type==='camp'&&!b.constructing).reduce((n,b)=>n+b.level*6,0);}
 export function armySize(army){return Object.entries(TROOPS).reduce((n,[k,v])=>n+(army[k]||0)*v.space,0);}
@@ -219,9 +230,9 @@ export function enemyBuildings(index){
   if(index>=2)list.push({id:'e-barracks',type:'barracks',x:-5,z:5,level});
   if(index>=3)list.push({id:'e-cannon2',type:'cannon',x:5,z:5,level});
   if(index>=5)list.push({id:'e-cannon3',type:'cannon',x:0,z:-6.5,level});
-  return list.map(b=>({...b,maxHp:Math.round(TYPES[b.type].hp*(.67+index*.085)),hp:Math.round(TYPES[b.type].hp*(.67+index*.085)),cooldown:Math.random()*.8}));
+  return list.map(b=>({...b,maxHp:Math.round(buildingHp(b)/(1+(Math.min(15,b.level)-1)*.25)*(.67+index*.085)),hp:Math.round(buildingHp(b)/(1+(Math.min(15,b.level)-1)*.25)*(.67+index*.085)),cooldown:Math.random()*.8}));
 }
-export function createBattle(s,index){return X.enrichBattle(s,{enemy:enemyDef(index),buildings:enemyBuildings(index),units:[],remaining:{...s.army},deployed:{guardian:0,ranger:0,giant:0},started:false,elapsed:0,duration:150,bounds:8.7,spells:s.spells?.thunder||0,spellStock:{...s.spells},heroStock:Object.fromEntries(Object.entries(s.heroes||{}).filter(([k,h])=>h.level>0&&!h.finishAt&&!(h.recoverAt>Date.now())).map(([k,h])=>[k,h.level])),effects:[],ended:false,stats:{destroyed:0,stars:0,percent:0}});}
+export function createBattle(s,index){return X.enrichBattle(s,{combatVersion:9,enemy:enemyDef(index),buildings:enemyBuildings(index),units:[],remaining:{...s.army},deployed:{guardian:0,ranger:0,giant:0},started:false,elapsed:0,duration:150,bounds:8.7,spells:s.spells?.thunder||0,spellStock:{...s.spells},heroStock:Object.fromEntries(Object.entries(s.heroes||{}).filter(([k,h])=>h.level>0&&!h.finishAt&&!(h.recoverAt>Date.now())).map(([k,h])=>[k,h.level])),effects:[],ended:false,stats:{destroyed:0,stars:0,percent:0}});}
 export function canDeploy(battle,x,z){
  if(!Number.isFinite(x)||!Number.isFinite(z)||battle.ended)return false;
  const regions=battle.land||[{x1:-(battle.bounds||8.7),x2:battle.bounds||8.7,z1:-(battle.bounds||8.7),z2:battle.bounds||8.7}];
@@ -245,7 +256,7 @@ export function stepBattle(battle,dt,onEvent=()=>{}){
   battle.elapsed+=dt;tickEffects(battle,dt);X.combatTick(battle,dt);const alive=()=>battle.buildings.filter(b=>b.hp>0&&b.type!=='bomb');
   for(const u of battle.units){
     if(u.hp<=0||u.pet&&X.PETS[u.type].heal)continue;const base=unitDefinition(u),def={...base,speed:u.speed||base.speed,range:u.range||base.range};const candidates=alive();if(!candidates.length)break;
-    let targets=def.target==='defense'||u.type==='giant'?candidates.filter(b=>DEFENSES[b.type]):candidates.filter(b=>b.type!=='wall');if(!targets.length)targets=candidates;
+    let targets=def.target==='defense'||u.type==='giant'?candidates.filter(b=>defenseStats(b)):candidates.filter(b=>b.type!=='wall');if(!targets.length)targets=candidates;
     let target=targets.reduce((a,b)=>Math.hypot(a.x-u.x,a.z-u.z)<Math.hypot(b.x-u.x,b.z-u.z)?a:b);
     if(!def.flying){const wall=candidates.filter(b=>b.type==='wall'&&segmentNear(u,target,b,.9)).sort((a,b)=>Math.hypot(a.x-u.x,a.z-u.z)-Math.hypot(b.x-u.x,b.z-u.z))[0];if(wall)target=wall;}
     const dx=target.x-u.x,dz=target.z-u.z,d=Math.hypot(dx,dz),stop=def.range+TYPES[target.type].size*.4;
@@ -260,10 +271,15 @@ export function stepBattle(battle,dt,onEvent=()=>{}){
   for(const b of battle.buildings){
     if(b.hp<=0)continue;
     if(b.type==='bomb'&&!b.triggered){const nearby=battle.units.filter(u=>u.hp>0&&Math.hypot(u.x-b.x,u.z-b.z)<1.6);if(nearby.length){for(const u of battle.units)if(Math.hypot(u.x-b.x,u.z-b.z)<2.8)u.hp=Math.max(0,u.hp-130*b.level);b.triggered=true;b.hp=0;onEvent({kind:'trap',building:b});}continue;}
-    const def=DEFENSES[b.type];if(!def||b.frozen>0)continue;b.cooldown=Math.max(0,b.cooldown-dt);if(b.cooldown>0)continue;
-    const targets=battle.units.filter(u=>u.hp>0&&Math.hypot(u.x-b.x,u.z-b.z)<def.range&&(!def.airOnly||unitDefinition(u).flying)&&(!def.groundOnly||!unitDefinition(u).flying));if(!targets.length)continue;
-    const u=targets.reduce((a,c)=>Math.hypot(a.x-b.x,a.z-b.z)<Math.hypot(c.x-b.x,c.z-b.z)?a:c);
-    const damage=def.damage*(1+(b.level-1)*.15);u.hp=Math.max(0,u.hp-damage*(u.ward>0?.15:1));if(def.splash)for(const other of targets)if(other!==u&&Math.hypot(other.x-u.x,other.z-u.z)<def.splash)other.hp=Math.max(0,other.hp-damage*.65*(other.ward>0?.15:1));
+    const modern=battle.combatVersion>=9,base=DEFENSES[b.type],def=modern?defenseStats(b):base?{...base,damage:base.damage*(1+(b.level-1)*.15)}:null;if(!def||b.frozen>0){b.lockedTarget=null;b.lockTime=0;continue;}b.cooldown=Math.max(0,b.cooldown-dt);if(b.cooldown>0)continue;
+    const targets=battle.units.filter(u=>u.hp>0&&Math.hypot(u.x-b.x,u.z-b.z)<def.range&&(!def.airOnly||unitDefinition(u).flying)&&(!def.groundOnly||!unitDefinition(u).flying));if(!targets.length){b.lockedTarget=null;b.lockTime=0;continue;}
+    let u=targets.reduce((a,c)=>Math.hypot(a.x-b.x,a.z-b.z)<Math.hypot(c.x-b.x,c.z-b.z)?a:c);
+    if(modern&&def.splash){let best=-1;for(const candidate of targets.filter((_,i)=>i%Math.ceil(targets.length/32)===0)){const count=targets.filter(other=>Math.hypot(other.x-candidate.x,other.z-candidate.z)<def.splash).length;if(count>best){best=count;u=candidate;}}}
+    if(modern&&b.type==='inferno')u=targets.find(x=>x.id===b.lockedTarget)||targets.reduce((a,c)=>a.hp>c.hp?a:c);
+    if(modern&&b.type==='inferno'){b.lockTime=b.lockedTarget===u.id?(b.lockTime||0)+def.rate:0;b.lockedTarget=u.id;}
+    const damage=def.damage*(modern&&b.type==='inferno'?1+Math.min(2,(b.lockTime||0)/3):1);u.hp=Math.max(0,u.hp-damage*(u.ward>0?.15:1));
+    if(def.splash)for(const other of targets)if(other!==u&&Math.hypot(other.x-u.x,other.z-u.z)<def.splash)other.hp=Math.max(0,other.hp-damage*(modern?.8:.65)*(other.ward>0?.15:1));
+    if(def.chain>1)for(const other of targets.filter(x=>x!==u&&Math.hypot(x.x-u.x,x.z-u.z)<2.5).sort((a,c)=>Math.hypot(a.x-u.x,a.z-u.z)-Math.hypot(c.x-u.x,c.z-u.z)).slice(0,def.chain-1))other.hp=Math.max(0,other.hp-damage*.6*(other.ward>0?.15:1));
     b.cooldown=def.rate;b.facing=Math.atan2(u.x-b.x,u.z-b.z);onEvent({kind:'defend',building:b,unit:u});
   }
   battle.stats=battleStats(battle);

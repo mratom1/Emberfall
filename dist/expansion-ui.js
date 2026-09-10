@@ -1,7 +1,7 @@
-import {heroPortrait} from './portraits.js?v=12.0.0';
-import * as M from './model.js?v=12.0.0';
-import * as X from './expansion.js?v=12.0.0';
-import {escapeHtml as esc} from './features.js?v=12.0.0';
+import {heroPortrait} from './portraits.js?v=13.0.0';
+import * as M from './model.js?v=13.0.0';
+import * as X from './expansion.js?v=13.0.0';
+import {escapeHtml as esc} from './features.js?v=13.0.0';
 const i=n=>`<i data-lucide="${n}"></i>`,n=v=>Math.floor(v||0).toLocaleString('en-US');
 const btn=(label,action,attrs='',disabled=false)=>`<button class="btn btn-gold" data-x="${action}" ${attrs} ${disabled?'disabled':''}>${label}</button>`;
 const timer=t=>`<span data-until="${t}">${Math.max(0,Math.ceil((t-Date.now())/1000))}s</span>`;

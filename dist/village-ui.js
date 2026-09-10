@@ -1,8 +1,8 @@
-import * as M from './model.js?v=12.0.0';
-import {LAND_REGIONS} from './content.js?v=12.0.0';
-import {COUNTRIES,FLAG_COST,flagImages} from './flags.js?v=12.0.0';
-import {heroPortrait} from './portraits.js?v=12.0.0';
-import {escapeHtml as esc} from './features.js?v=12.0.0';
+import * as M from './model.js?v=13.0.0';
+import {LAND_REGIONS} from './content.js?v=13.0.0';
+import {COUNTRIES,FLAG_COST,flagImages} from './flags.js?v=13.0.0';
+import {heroPortrait} from './portraits.js?v=13.0.0';
+import {escapeHtml as esc} from './features.js?v=13.0.0';
 const icon=n=>`<i data-lucide="${n}"></i>`;
 const fmt=n=>Math.ceil(n).toLocaleString('en-US');
 export function remainingText(ms){const t=Math.max(0,Math.ceil(ms/1000));return t>=3600?`${Math.floor(t/3600)}h ${Math.ceil(t%3600/60)}m`:t>=60?`${Math.floor(t/60)}m ${t%60}s`:`${t}s`;}

@@ -1,19 +1,19 @@
-import {modelPortrait,installModelPictures} from './portraits.js?v=12.0.0';
-import {VillageUI} from './village-ui.js?v=12.0.0';
-import * as R from './raids.js?v=12.0.0';
-import {RaidUI} from './raid-ui.js?v=12.0.0';
-import {installLandscape} from './viewport.js?v=12.0.0';
-import {GRAPHICS,graphicsProfile} from './graphics.js?v=12.0.0';
-import {AccountUI} from './account-ui.js?v=12.0.0';
-import {nativeApp,chooseServer} from './native.js?v=12.0.0';
-import {QualityUI} from './quality-ui.js?v=12.0.0';
-import * as M from './model.js?v=12.0.0';
-import * as X from './expansion.js?v=12.0.0';
-import {ExpansionUI} from './expansion-ui.js?v=12.0.0';
-import {Connection,requestId} from './connection.js?v=12.0.0';
-import {Features,escapeHtml} from './features.js?v=12.0.0';
-import {World} from './world.js?v=12.0.0';
-import {TYPES,TROOPS,QUESTS,SAVE_KEY,loadState,capacity,armyCapacity,armySize,queueSize,hallLevel,freeBuilders,producerRate,productionCapacity,upgradeCost,canPlace,build,upgrade,train,advance,collect,claimQuest,enemyDef,createBattle,deploy,strike,stepBattle,settleBattle} from './model.js?v=12.0.0';
+import {modelPortrait,installModelPictures} from './portraits.js?v=13.0.0';
+import {VillageUI} from './village-ui.js?v=13.0.0';
+import * as R from './raids.js?v=13.0.0';
+import {RaidUI} from './raid-ui.js?v=13.0.0';
+import {installLandscape} from './viewport.js?v=13.0.0';
+import {GRAPHICS,graphicsProfile} from './graphics.js?v=13.0.0';
+import {AccountUI} from './account-ui.js?v=13.0.0';
+import {nativeApp,chooseServer} from './native.js?v=13.0.0';
+import {QualityUI} from './quality-ui.js?v=13.0.0';
+import * as M from './model.js?v=13.0.0';
+import * as X from './expansion.js?v=13.0.0';
+import {ExpansionUI} from './expansion-ui.js?v=13.0.0';
+import {Connection,requestId} from './connection.js?v=13.0.0';
+import {Features,escapeHtml} from './features.js?v=13.0.0';
+import {World} from './world.js?v=13.0.0';
+import {TYPES,TROOPS,QUESTS,SAVE_KEY,loadState,capacity,armyCapacity,armySize,queueSize,hallLevel,freeBuilders,producerRate,productionCapacity,upgradeCost,canPlace,build,upgrade,train,advance,collect,claimQuest,enemyDef,createBattle,deploy,strike,stepBattle,settleBattle} from './model.js?v=13.0.0';
 
 installLandscape();
 
@@ -30,7 +30,7 @@ const modal=$('modal');let audioContext;
 
 function save(){if(api.online){try{storage.setItem('emberfall.preferences',JSON.stringify(state.settings));}catch{}return;}try{storage.setItem(SAVE_KEY,JSON.stringify(state));}catch{if(!saveFailed){toast('This browser cannot save progress. Keep this tab open to continue.',true);saveFailed=true;}}}
 function worldSync(force=false){
- if(!world)return;world.setTerritory(village(),battle);world.setVillageBanner(battle?battle.bannerCode:village().bannerCode||village().flags?.[0]?.code);world.setFlags(battle?battle.flags||[]:village().flags||[]);if(world.placing){world.placing.state=village();world.updatePlacement(world.placing.x,world.placing.z);}world.setObstacles(village().obstacles||[]);world.setVillageHeroes(village().heroes||{},!!battle,village().buildings);world.setCampArmy(village(),!!battle);
+ if(!world)return;world.setTerritory(village(),battle);world.setVillageBanner(battle?battle.bannerCode:village().bannerCode||village().flags?.[0]?.code);world.setFlags(battle?battle.flags||[]:village().flags||[]);if(world.placing){world.placing.state=village();world.updatePlacement(world.placing.x,world.placing.z);}world.setObstacles(village().obstacles||[]);world.setVillageHeroes(village().heroes||{},!!battle,village().buildings);world.setCampArmy(village(),!!battle);world.setWorkers(village(),!!battle);
  const list=battle?battle.buildings:village().buildings;const sig=(battle?'battle:':currentRealm+':')+JSON.stringify(list.map(b=>[b.id,b.type,b.level,b.x,b.z,b.rotation,!!b.finishAt]));
  if(sig!==worldSignature||force){worldSignature=sig;world.rebuild(list,!!battle);world.setVillageBanner(battle?battle.bannerCode:village().bannerCode||village().flags?.[0]?.code);if(battle){world.setBattleBounds(battle.bounds);for(const u of battle.units)world.addUnit(u);}}
  if(battle){for(const u of battle.units)if(!world.unitMap.has(u.id))world.addUnit(u);world.updateBattle(battle);}else{for(const c of world.coins)c.b=village().buildings.find(b=>b.id===c.b.id)||c.b;for(const b of village().buildings){const m=world.buildingMap.get(b.id);if(m)m.userData.building=b;}}
@@ -115,10 +115,12 @@ function openQuests(){showModal('quests',header('THE PATH TO GREATNESS','Village
 function openGuide(){showModal('guide',header('WELCOME, CHIEF','Your kingdom awaits')+`<div class="modal-body"><div class="guide-steps"><div class="guide-step"><span class="step-number">1</span><div><strong>Build & collect · ရွာတည်ဆောက်မယ်</strong><p>Build ကိုနှိပ်၊ အဆောက်အဦးရွေးပြီး မြေကွက်လွတ်ပေါ်မှာ ပုံစံကို ရွှေ့ကြည့်ပါ။ အစိမ်းရောင်ဖြစ်ရင် Build here ကိုနှိပ်ပြီး အတည်ပြုပါ။ ရွှေနဲ့ Elixir ရဖို့ Collect ကိုနှိပ်ပါ။ အဆောက်အဦးပေါ်နှိပ်ပြီး Upgrade လုပ်နိုင်ပါတယ်။</p></div></div><div class="guide-step"><span class="step-number">2</span><div><strong>Raise an army · စစ်သားလေ့ကျင့်မယ်</strong><p>Army ထဲမှာ စစ်သားလေ့ကျင့်ပါ။ Guardian က ရှေ့တန်း၊ Ranger က အဝေးပစ်၊ Stone Giant က ခံနိုင်ရည်များပြီး ရန်သူ့ကာကွယ်ရေးကို အရင်တိုက်ပါတယ်။</p></div></div><div class="guide-step"><span class="step-number">3</span><div><strong>Raid the wilds · တိုက်ပွဲဝင်မယ်</strong><p>Battle → Scout ကိုနှိပ်ပါ။ စစ်သားအမျိုးအစားရွေးပြီး အနီရောင်ဘောင်အပြင်မှာ နှိပ်ချပါ။ Thunder ကိုရွေးပြီး ရန်သူ့အဆောက်အဦးပေါ် နှိပ်ရင် မိုးကြိုးပစ်နိုင်ပါတယ်။</p></div></div><div class="guide-step"><span class="step-number">4</span><div><strong>Explore · မြင်ကွင်းရွှေ့မယ်</strong><p>ဖိဆွဲပြီး မြင်ကွင်းရွှေ့ပါ။ လက်နှစ်ချောင်းနဲ့ ချဲ့/ချုံ့နိုင်ပါတယ်။ ကွန်ပျူတာမှာ mouse wheel၊ + / − နဲ့ မြင်ကွင်းချဲ့/ချုံ့၊ H နဲ့ အလယ်ပြန်ထားနိုင်ပါတယ်။</p></div></div></div><p class="guide-foot">Campaign + server player raids · Your current save mode appears in Settings. Deployed troops are spent in each raid. Resources accumulate for up to 8 hours away, limited by each building’s storage.</p><button class="btn btn-gold btn-full" data-action="close">${icon('flag')} Back to the village</button></div>`);}
 function openSettings(){showModal('settings',header('MAKE YOURSELF AT HOME','Game settings')+`<div class="modal-body"><div class="settings-row"><div><strong>Sound effects</strong><small>Construction, coins, and battle sounds</small></div><button class="btn" data-action="sound">${icon(state.settings.sound?'volume-2':'volume-x')}${state.settings.sound?'On':'Off'}</button></div><div class="settings-row"><div><strong>3D graphics</strong><small>Ultra HD uses more battery. Smooth suits older phones.</small></div><select id="graphics-quality" aria-label="3D graphics quality">${Object.entries(GRAPHICS).map(([id,p])=>`<option value="${id}" ${graphicsProfile(state.settings.quality)===id?'selected':''}>${p.name}</option>`).join('')}</select></div><div class="settings-row"><div><strong>How to play</strong><small>မြန်မာလို ကစားနည်းဖတ်ရန်</small></div><button class="btn" data-action="guide">${icon('book-open')} Guide</button></div><p class="settings-footer">Emberfall · Kingdoms at War<br>${api.online?'Server connected · Your village is saved in the server database.':saveFailed?'Saving is unavailable in this browser.':'Standalone mode · Your village is saved on this device.'}<br>Gold & elixir capacity: ${fmt(capacity(village()))} each.<br>${api.online?'Use an account to access your village on other devices.':'Clearing browser data removes your standalone village.'}</p><button class="btn btn-full" data-v2="account">Village account · Google / Facebook</button>${nativeApp()?'<button class="btn btn-full" data-action="server">Server & app</button>':''}<button class="btn btn-full" data-action="close" style="margin-top:10px">Continue playing</button></div>`);}
 async function doCollect(id){try{const r=await mutate({type:'collect',id});if(r.gold||r.elixir){toast(`${r.gold?'+'+fmt(r.gold)+' gold':''}${r.gold&&r.elixir?' · ':''}${r.elixir?'+'+fmt(r.elixir)+' elixir':''}`);sound('coin');for(const b of village().buildings)if((!id||id===b.id)&&producerRate(b))world.burst(b.x,2,b.z,b.type==='mine'?0xe7c467:0xcfa1e3,9);}else toast('Resources collected. Upgrade your stores if they are full.');}catch(e){toast(e.message,true);}}
+let battleStarting=false;
 async function startBattle(index,defender,extra={}){
- try{syncEpoch++;closeModal();cancelPlacement();deselect();if(api.online){const r=await api.command({type:'battle-start',index,defender,...extra});applyResponse(r);}else{if((!extra.mode||extra.mode==='match')&&armySize(village().army)<1&&!Object.values(state.heroes).some(h=>h.level&&!h.finishAt&&!(h.recoverAt>Date.now()))){toast('Train your army before battle.',true);return;}const modeResult=extra.mode==='match'?{battle:R.createBotBattle(state)}:extra.mode?X.createModeBattle(state,extra.mode):null;if(modeResult?.error)throw Error(modeResult.error);battle=modeResult?.battle||createBattle(state,index);battle.id=requestId();battleId=battle.id;worldSync(true);}
+ if(battleStarting)return;battleStarting=true;$('app').inert=true;
+ try{await world.journey(true);syncEpoch++;closeModal();cancelPlacement();deselect();if(api.online){const r=await api.command({type:'battle-start',index,defender,...extra});applyResponse(r);}else{if((!extra.mode||extra.mode==='match')&&armySize(village().army)<1&&!Object.values(state.heroes).some(h=>h.level&&!h.finishAt&&!(h.recoverAt>Date.now()))){toast('Train your army before battle.',true);return;}const modeResult=extra.mode==='match'?{battle:R.createBotBattle(state)}:extra.mode?X.createModeBattle(state,extra.mode):null;if(modeResult?.error)throw Error(modeResult.error);battle=modeResult?.battle||createBattle(state,index);battle.id=requestId();battleId=battle.id;worldSync(true);}
  selectedTroop=Object.keys(TROOPS).find(k=>battle.remaining[k]>0)||'guardian';spellMode=false;world.recenter();if((battle.bounds||8.7)>10)world.setZoom(.85);showBattleHUD();renderDeploy();sound('build');toast('Scout the defenses. Deploy outside red footprints or on green cleared tiles.');
- }catch(e){toast(e.message,true);}
+ }catch(e){toast(e.message,true);}finally{try{await world.journey(false);}finally{battleStarting=false;$('app').inert=false;}}
 }
 function renderDeploy(){
  if(!battle)return;$('deploy-cards').innerHTML=Object.entries(TROOPS).filter(([k])=>(battle.remaining[k]||0)+(battle.deployed[k]||0)>0).map(([type,d])=>`<button class="deploy-card ${selectedTroop===type&&!spellMode?'selected':''}" data-action="troop" data-type="${type}" aria-label="Deploy ${d.name}, ${battle.remaining[type]||0} remaining" ${!(battle.remaining[type]>0)?'disabled':''}><b>${battle.remaining[type]||0}</b>${modelPortrait('troop',type,X.wallet(state,battle).research?.[type]||1,'deploy-model')}<span>${d.name}</span></button>`).join('')+(features?.heroCards(battle,selectedTroop)||'')+(extensions?.siegeCards(battle,selectedTroop)||'');icons();

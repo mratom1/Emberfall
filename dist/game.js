@@ -1,19 +1,19 @@
-import {modelPortrait,installModelPictures} from './portraits.js?v=10.0.0';
-import {VillageUI} from './village-ui.js?v=10.0.0';
-import * as R from './raids.js?v=10.0.0';
-import {RaidUI} from './raid-ui.js?v=10.0.0';
-import {installLandscape} from './viewport.js?v=10.0.0';
-import {GRAPHICS,graphicsProfile} from './graphics.js?v=10.0.0';
-import {AccountUI} from './account-ui.js?v=10.0.0';
-import {nativeApp,chooseServer} from './native.js?v=10.0.0';
-import {QualityUI} from './quality-ui.js?v=10.0.0';
-import * as M from './model.js?v=10.0.0';
-import * as X from './expansion.js?v=10.0.0';
-import {ExpansionUI} from './expansion-ui.js?v=10.0.0';
-import {Connection,requestId} from './connection.js?v=10.0.0';
-import {Features,escapeHtml} from './features.js?v=10.0.0';
-import {World} from './world.js?v=10.0.0';
-import {TYPES,TROOPS,QUESTS,SAVE_KEY,loadState,capacity,armyCapacity,armySize,queueSize,hallLevel,freeBuilders,producerRate,productionCapacity,upgradeCost,canPlace,build,upgrade,train,advance,collect,claimQuest,enemyDef,createBattle,deploy,strike,stepBattle,settleBattle} from './model.js?v=10.0.0';
+import {modelPortrait,installModelPictures} from './portraits.js?v=11.0.0';
+import {VillageUI} from './village-ui.js?v=11.0.0';
+import * as R from './raids.js?v=11.0.0';
+import {RaidUI} from './raid-ui.js?v=11.0.0';
+import {installLandscape} from './viewport.js?v=11.0.0';
+import {GRAPHICS,graphicsProfile} from './graphics.js?v=11.0.0';
+import {AccountUI} from './account-ui.js?v=11.0.0';
+import {nativeApp,chooseServer} from './native.js?v=11.0.0';
+import {QualityUI} from './quality-ui.js?v=11.0.0';
+import * as M from './model.js?v=11.0.0';
+import * as X from './expansion.js?v=11.0.0';
+import {ExpansionUI} from './expansion-ui.js?v=11.0.0';
+import {Connection,requestId} from './connection.js?v=11.0.0';
+import {Features,escapeHtml} from './features.js?v=11.0.0';
+import {World} from './world.js?v=11.0.0';
+import {TYPES,TROOPS,QUESTS,SAVE_KEY,loadState,capacity,armyCapacity,armySize,queueSize,hallLevel,freeBuilders,producerRate,productionCapacity,upgradeCost,canPlace,build,upgrade,train,advance,collect,claimQuest,enemyDef,createBattle,deploy,strike,stepBattle,settleBattle} from './model.js?v=11.0.0';
 
 installLandscape();
 

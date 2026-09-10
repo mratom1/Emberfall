@@ -1,8 +1,8 @@
-import {COUNTRY_CODES,FLAG_COST} from './flags.js?v=10.0.0';
-import {EXTRA_HEROES,unlockedLand,landContains} from './content.js?v=10.0.0';
-import * as R from './raids.js?v=10.0.0';
-import * as Q from './quality.js?v=10.0.0';
-import * as X from './expansion.js?v=10.0.0';
+import {COUNTRY_CODES,FLAG_COST} from './flags.js?v=11.0.0';
+import {EXTRA_HEROES,unlockedLand,landContains} from './content.js?v=11.0.0';
+import * as R from './raids.js?v=11.0.0';
+import * as Q from './quality.js?v=11.0.0';
+import * as X from './expansion.js?v=11.0.0';
 export const SAVE_KEY = 'emberfall.kingdom.v1';
 export const TYPES = {
   hall: {name:'Town Hall',icon:'castle',desc:'The heart of your village. Upgrade to unlock stronger buildings and a larger army.',gold:0,elixir:0,size:3.7,hp:1600,max:1,time:30},

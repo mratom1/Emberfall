@@ -1,6 +1,6 @@
-import * as M from './model.js?v=10.0.0';
-import * as Q from './quality.js?v=10.0.0';
-import {escapeHtml as esc} from './features.js?v=10.0.0';
+import * as M from './model.js?v=11.0.0';
+import * as Q from './quality.js?v=11.0.0';
+import {escapeHtml as esc} from './features.js?v=11.0.0';
 
 const icon = name => `<i data-lucide="${name}"></i>`;
 const time = finish => { const s = Math.max(0, Math.ceil((finish - Date.now()) / 1000)); return s >= 3600 ? `${Math.floor(s / 3600)}h ${Math.ceil(s % 3600 / 60)}m` : s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`; };

@@ -41,3 +41,6 @@
 - Fixes: hero-only campaign scouting, mobile upgrade cost visibility, account-switch battle cleanup.
 
 Existing Town Hall hero unlocks/caps, real clan wars, Builder Base, equipment, pets, siege, capital raids, AI clan league, season rewards, signed payment verification and server economy remain part of the source.
+
+## v11 — walking and mobile flags
+Ground troops and heroes use separate rigid limbs with opposing leg/arm strides in village patrols and battles. Idle stops the stride; flying units hover and winged models flap. Flag SVGs now have explicit raster dimensions and are drawn to canvas before WebGL upload; unlit double-sided flag materials avoid shadowed black cloth. Regression checks cover all ground/flying character rigs and the raster texture pipeline. Actual phone visual verification remains pending.

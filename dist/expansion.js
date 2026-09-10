@@ -1,5 +1,5 @@
-import {EXTRA_HEROES} from './content.js?v=10.0.0';
-import * as M from './model.js?v=10.0.0';
+import {EXTRA_HEROES} from './content.js?v=11.0.0';
+import * as M from './model.js?v=11.0.0';
 
 export const EQUIPMENT={
  ironheart:{name:'Ironheart',icon:'shield',desc:'More hit points.',hp:.08},

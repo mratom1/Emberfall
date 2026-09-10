@@ -1,3 +1,12 @@
+## 10.0.0
+- Fit Army cards to mobile width and remove the Hero gallery height cap.
+- Compact rotated-phone battle controls and hide the home resource bar during combat.
+- Fix camera jumps after releasing one finger of a pinch gesture.
+- Expand the original troop roster to 22, with unique physical geometry, human anatomy and distinct weapons, creatures and automata.
+- Add medic healing, additional splash and wall-breaking troop roles, and troop model inspection.
+- Remove Your Buildings; retain the wall-upgrade manager.
+- Apply owned country flags to all village poles and building banners, including the Town Hall.
+
 # Emberfall v9.0.0
 
 - Defense levels now increase damage/fire rate/range; splash targets groups, Tesla chains and Inferno ramps. Town Hall weapon unlocks at 7. Strategy regression: same 24 Rangers score 0 stars clustered versus 2 when flanking.

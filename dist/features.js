@@ -1,8 +1,8 @@
-import * as R from './raids.js?v=9.0.0';
-import {enterLandscapeFullscreen} from './viewport.js?v=9.0.0';
-import {heroPortrait} from './portraits.js?v=9.0.0';
-import {nativeApp,openExternal} from './native.js?v=9.0.0';
-import * as M from './model.js?v=9.0.0';
+import * as R from './raids.js?v=10.0.0';
+import {enterLandscapeFullscreen} from './viewport.js?v=10.0.0';
+import {heroPortrait} from './portraits.js?v=10.0.0';
+import {nativeApp,openExternal} from './native.js?v=10.0.0';
+import * as M from './model.js?v=10.0.0';
 const $=id=>document.getElementById(id),icon=n=>`<i data-lucide="${n}"></i>`,fmt=n=>Math.floor(n||0).toLocaleString('en-US');
 export const escapeHtml=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const button=(label,action,attrs='',gold=true)=>`<button class="btn ${gold?'btn-gold':''}" data-v2="${action}" ${attrs}>${label}</button>`;

@@ -1,19 +1,19 @@
-import {modelPortrait,installModelPictures} from './portraits.js?v=9.0.0';
-import {VillageUI} from './village-ui.js?v=9.0.0';
-import * as R from './raids.js?v=9.0.0';
-import {RaidUI} from './raid-ui.js?v=9.0.0';
-import {installLandscape} from './viewport.js?v=9.0.0';
-import {GRAPHICS,graphicsProfile} from './graphics.js?v=9.0.0';
-import {AccountUI} from './account-ui.js?v=9.0.0';
-import {nativeApp,chooseServer} from './native.js?v=9.0.0';
-import {QualityUI} from './quality-ui.js?v=9.0.0';
-import * as M from './model.js?v=9.0.0';
-import * as X from './expansion.js?v=9.0.0';
-import {ExpansionUI} from './expansion-ui.js?v=9.0.0';
-import {Connection,requestId} from './connection.js?v=9.0.0';
-import {Features,escapeHtml} from './features.js?v=9.0.0';
-import {World} from './world.js?v=9.0.0';
-import {TYPES,TROOPS,QUESTS,SAVE_KEY,loadState,capacity,armyCapacity,armySize,queueSize,hallLevel,freeBuilders,producerRate,productionCapacity,upgradeCost,canPlace,build,upgrade,train,advance,collect,claimQuest,enemyDef,createBattle,deploy,strike,stepBattle,settleBattle} from './model.js?v=9.0.0';
+import {modelPortrait,installModelPictures} from './portraits.js?v=10.0.0';
+import {VillageUI} from './village-ui.js?v=10.0.0';
+import * as R from './raids.js?v=10.0.0';
+import {RaidUI} from './raid-ui.js?v=10.0.0';
+import {installLandscape} from './viewport.js?v=10.0.0';
+import {GRAPHICS,graphicsProfile} from './graphics.js?v=10.0.0';
+import {AccountUI} from './account-ui.js?v=10.0.0';
+import {nativeApp,chooseServer} from './native.js?v=10.0.0';
+import {QualityUI} from './quality-ui.js?v=10.0.0';
+import * as M from './model.js?v=10.0.0';
+import * as X from './expansion.js?v=10.0.0';
+import {ExpansionUI} from './expansion-ui.js?v=10.0.0';
+import {Connection,requestId} from './connection.js?v=10.0.0';
+import {Features,escapeHtml} from './features.js?v=10.0.0';
+import {World} from './world.js?v=10.0.0';
+import {TYPES,TROOPS,QUESTS,SAVE_KEY,loadState,capacity,armyCapacity,armySize,queueSize,hallLevel,freeBuilders,producerRate,productionCapacity,upgradeCost,canPlace,build,upgrade,train,advance,collect,claimQuest,enemyDef,createBattle,deploy,strike,stepBattle,settleBattle} from './model.js?v=10.0.0';
 
 installLandscape();
 
@@ -30,9 +30,9 @@ const modal=$('modal');let audioContext;
 
 function save(){if(api.online){try{storage.setItem('emberfall.preferences',JSON.stringify(state.settings));}catch{}return;}try{storage.setItem(SAVE_KEY,JSON.stringify(state));}catch{if(!saveFailed){toast('This browser cannot save progress. Keep this tab open to continue.',true);saveFailed=true;}}}
 function worldSync(force=false){
- if(!world)return;world.setTerritory(village(),battle);world.setFlags(battle?battle.flags||[]:village().flags||[]);if(world.placing){world.placing.state=village();world.updatePlacement(world.placing.x,world.placing.z);}world.setObstacles(village().obstacles||[]);world.setVillageHeroes(village().heroes||{},!!battle,village().buildings);world.setCampArmy(village(),!!battle);
+ if(!world)return;world.setTerritory(village(),battle);world.setVillageBanner(battle?battle.bannerCode:village().bannerCode||village().flags?.[0]?.code);world.setFlags(battle?battle.flags||[]:village().flags||[]);if(world.placing){world.placing.state=village();world.updatePlacement(world.placing.x,world.placing.z);}world.setObstacles(village().obstacles||[]);world.setVillageHeroes(village().heroes||{},!!battle,village().buildings);world.setCampArmy(village(),!!battle);
  const list=battle?battle.buildings:village().buildings;const sig=(battle?'battle:':currentRealm+':')+JSON.stringify(list.map(b=>[b.id,b.type,b.level,b.x,b.z,b.rotation,!!b.finishAt]));
- if(sig!==worldSignature||force){worldSignature=sig;world.rebuild(list,!!battle);if(battle){world.setBattleBounds(battle.bounds);for(const u of battle.units)world.addUnit(u);}}
+ if(sig!==worldSignature||force){worldSignature=sig;world.rebuild(list,!!battle);world.setVillageBanner(battle?battle.bannerCode:village().bannerCode||village().flags?.[0]?.code);if(battle){world.setBattleBounds(battle.bounds);for(const u of battle.units)world.addUnit(u);}}
  if(battle){for(const u of battle.units)if(!world.unitMap.has(u.id))world.addUnit(u);world.updateBattle(battle);}else{for(const c of world.coins)c.b=village().buildings.find(b=>b.id===c.b.id)||c.b;for(const b of village().buildings){const m=world.buildingMap.get(b.id);if(m)m.userData.building=b;}}
 }
 function applyResponse(data){
@@ -90,7 +90,7 @@ function updateBuildingTimer(){
 }
 function openBuild(){
   const kinds=currentRealm==='home'?Object.keys(TYPES).filter(t=>!['hall','cottage','flag'].includes(t)):X.BUILDER_TYPES;
-  showModal('build',header('A KINGDOM, ONE STONE AT A TIME','Build your village')+`<div class="modal-body"><p class="modal-intro">Choose a building, then tap an empty space in your village. ${freeBuilders(village())} of ${village().builders} builders available.</p>${currentRealm==='home'?'<div class="expansion-tabs"><button class="btn btn-gold" data-village="land">Across the bridge</button><button class="btn btn-gold" data-village="flags">Country flags</button></div>':''}<div class="card-grid">${kinds.map(type=>{const d=TYPES[type],count=village().buildings.filter(b=>b.type===type).length;return `<article class="shop-card"><span class="card-badge">${count} / ${d.max}</span>${modelPortrait('building',type,1,'shop-model')}<h3>${d.name}</h3><p>${d.desc}</p><div class="card-meta"><span>Level 1</span><span>${icon('heart')}${fmt(M.buildingHp({type,level:1}))} HP</span><span>${icon('timer')}${d.time}s</span>${d.elixir?`<span>${icon('droplets')}${d.elixir}</span>`:''}</div><button class="btn btn-gold" data-action="place" data-type="${type}" ${count>=d.max||village().gold<d.gold||village().elixir<d.elixir||(type!=='wall'&&freeBuilders(village())<1)||hallLevel(village())<(d.unlock||1)?'disabled':''}>${hallLevel(village())<(d.unlock||1)?'Town Hall '+d.unlock:count>=d.max?'Limit reached':`${icon('coins')}${fmt(d.gold)} · Build`}</button></article>`;}).join('')}</div>${currentRealm!=='capital'?`<button class="btn btn-full" data-q="walls" style="margin-top:16px">${icon('brick-wall')}Manage wall upgrades</button>`:''}<div class="training-queue"><h3>Your buildings</h3><div class="owned-buildings">${village().buildings.map(b=>`<button class="btn btn-small" data-action="select-owned" data-id="${b.id}">${modelPortrait('building',b.type,b.level,'owned-model')} ${TYPES[b.type].name} · ${b.level}</button>`).join('')}</div></div></div>`);
+  showModal('build',header('A KINGDOM, ONE STONE AT A TIME','Build your village')+`<div class="modal-body"><p class="modal-intro">Choose a building, then tap an empty space in your village. ${freeBuilders(village())} of ${village().builders} builders available.</p>${currentRealm==='home'?'<div class="expansion-tabs"><button class="btn btn-gold" data-village="land">Across the bridge</button><button class="btn btn-gold" data-village="flags">Country flags</button></div>':''}<div class="card-grid">${kinds.map(type=>{const d=TYPES[type],count=village().buildings.filter(b=>b.type===type).length;return `<article class="shop-card"><span class="card-badge">${count} / ${d.max}</span>${modelPortrait('building',type,1,'shop-model')}<h3>${d.name}</h3><p>${d.desc}</p><div class="card-meta"><span>Level 1</span><span>${icon('heart')}${fmt(M.buildingHp({type,level:1}))} HP</span><span>${icon('timer')}${d.time}s</span>${d.elixir?`<span>${icon('droplets')}${d.elixir}</span>`:''}</div><button class="btn btn-gold" data-action="place" data-type="${type}" ${count>=d.max||village().gold<d.gold||village().elixir<d.elixir||(type!=='wall'&&freeBuilders(village())<1)||hallLevel(village())<(d.unlock||1)?'disabled':''}>${hallLevel(village())<(d.unlock||1)?'Town Hall '+d.unlock:count>=d.max?'Limit reached':`${icon('coins')}${fmt(d.gold)} · Build`}</button></article>`;}).join('')}</div>${currentRealm!=='capital'?`<button class="btn btn-full" data-q="walls" style="margin-top:16px">${icon('brick-wall')}Manage wall upgrades</button>`:''}</div>`);
 }
 function startPlacement(type,movingId=null){
   closeModal();deselect();placement={type,movingId};world.setPlacement(type,village(),movingId);$('placement-bar').hidden=false;$('placement-text').textContent=`Click an empty tile or drag the preview, then confirm`;icons();
@@ -98,7 +98,7 @@ function startPlacement(type,movingId=null){
 function startFlag(code,movingId=null){startPlacement('flag',movingId);placement.code=code;world.setFlagPreview(code);$('confirm-placement').innerHTML=icon('flag')+(movingId?' Move flag':' Place flag · 200');}
 function cancelPlacement(){$('confirm-placement').innerHTML=icon('check')+' Build here';$('cancel-placement').textContent='Cancel';placement=null;world?.setPlacement(null);$('placement-bar').hidden=true;}
 function openArmy(){
-  showModal('army',header('READY YOUR BANNERS','Raise an army')+`<div class="modal-body"><p class="modal-intro">Train your troops with elixir. Deployed troops are spent in battle; troops you keep in reserve return home.</p><p class="capacity-note" id="army-capacity">${icon('tent')}${armySize(village().army)+queueSize(village())} / ${armyCapacity(village())} army spaces</p><button class="btn btn-full" data-q="presets" style="margin-bottom:16px">${icon('layers')}Army presets · Quick train</button><div class="card-grid army-grid">${Object.entries(TROOPS).map(([type,d])=>`<article class="shop-card"><span class="card-badge" id="owned-${type}">${village().army[type]||0} ready</span>${modelPortrait('troop',type,village().research[type]||1,'shop-model')}<h3>${d.name}</h3><p>${d.desc}</p><div class="card-meta"><span>Lv. ${village().research[type]||1}</span><span>${icon('heart')}${Math.round(d.hp*(1+((village().research[type]||1)-1)*.18))}</span><span>${icon('swords')}${Math.round(d.damage*(1+((village().research[type]||1)-1)*.18))} damage</span><span>${icon('timer')}${d.time}s</span><span>${icon('users')}${d.space}</span></div><button class="btn btn-gold" data-action="train" data-type="${type}" id="train-${type}">${icon('droplets')}${d.cost} · Train</button><button class="btn btn-small" data-q="batch" data-troop="${type}" ${!M.troopUnlocked(village(),type)?'disabled':''}>Train 5 · ${d.cost*5} elixir</button></article>`).join('')}</div><div class="training-queue"><h3>Training queue</h3><div class="queue-items" id="queue-items"></div><div id="training-speed"></div></div><button class="btn btn-full" style="margin-top:18px" data-action="campaign">${icon('swords')} Find a battle</button></div>`);updateArmyModal();
+  showModal('army',header('READY YOUR BANNERS','Raise an army')+`<div class="modal-body"><p class="modal-intro">Train your troops with elixir. Deployed troops are spent in battle; troops you keep in reserve return home.</p><p class="capacity-note" id="army-capacity">${icon('tent')}${armySize(village().army)+queueSize(village())} / ${armyCapacity(village())} army spaces</p><button class="btn btn-full" data-q="presets" style="margin-bottom:16px">${icon('layers')}Army presets · Quick train</button><div class="card-grid army-grid">${Object.entries(TROOPS).map(([type,d])=>`<article class="shop-card"><span class="card-badge" id="owned-${type}">${village().army[type]||0} ready</span>${modelPortrait('troop',type,village().research[type]||1,'shop-model')}<h3>${d.name}</h3><p>${d.desc}</p><div class="card-meta"><span>Lv. ${village().research[type]||1}</span><span>${icon('heart')}${Math.round(d.hp*(1+((village().research[type]||1)-1)*.18))}</span><span>${icon('swords')}${Math.round((d.heal||d.damage)*(1+((village().research[type]||1)-1)*.18))} ${d.heal?'healing':'damage'}</span><span>${icon('timer')}${d.time}s</span><span>${icon('users')}${d.space}</span></div><button class="btn btn-gold" data-action="train" data-type="${type}" id="train-${type}">${icon('droplets')}${d.cost} · Train</button><button class="btn btn-small" data-q="batch" data-troop="${type}" ${!M.troopUnlocked(village(),type)?'disabled':''}>Train 5 · ${d.cost*5} elixir</button><button class="btn btn-small" data-village="detail" data-kind="troop" data-type="${type}" data-level="${village().research[type]||1}">Inspect 3D model</button></article>`).join('')}</div><div class="training-queue"><h3>Training queue</h3><div class="queue-items" id="queue-items"></div><div id="training-speed"></div></div><button class="btn btn-full" style="margin-top:18px" data-action="campaign">${icon('swords')} Find a battle</button></div>`);updateArmyModal();
 }
 function updateArmyModal(){
   if(!$('army-capacity'))return;$('army-capacity').innerHTML=`${icon('tent')}${armySize(village().army)+queueSize(village())} / ${armyCapacity(village())} army spaces${queueSize(village())?` · ${queueSize(village())} training`:''}`;

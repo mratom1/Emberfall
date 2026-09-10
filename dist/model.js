@@ -1,8 +1,8 @@
-import {COUNTRY_CODES,FLAG_COST} from './flags.js?v=9.0.0';
-import {EXTRA_HEROES,unlockedLand,landContains} from './content.js?v=9.0.0';
-import * as R from './raids.js?v=9.0.0';
-import * as Q from './quality.js?v=9.0.0';
-import * as X from './expansion.js?v=9.0.0';
+import {COUNTRY_CODES,FLAG_COST} from './flags.js?v=10.0.0';
+import {EXTRA_HEROES,unlockedLand,landContains} from './content.js?v=10.0.0';
+import * as R from './raids.js?v=10.0.0';
+import * as Q from './quality.js?v=10.0.0';
+import * as X from './expansion.js?v=10.0.0';
 export const SAVE_KEY = 'emberfall.kingdom.v1';
 export const TYPES = {
   hall: {name:'Town Hall',icon:'castle',desc:'The heart of your village. Upgrade to unlock stronger buildings and a larger army.',gold:0,elixir:0,size:3.7,hp:1600,max:1,time:30},
@@ -40,6 +40,23 @@ Object.assign(TROOPS,{
  breaker:{name:'Siege Breaker',icon:'axe',desc:'Armored assault unit that targets defenses.',cost:240,time:5,hp:550,damage:90,speed:1.8,range:1.1,rate:1.2,space:3,color:0x627c89,unlock:4,target:'defense'},
  wyvern:{name:'Sky Wyvern',icon:'bird',desc:'Flying attacker that ignores walls and ground-only defenses.',cost:420,time:7,hp:1050,damage:115,speed:2,range:3.2,rate:1.25,space:5,color:0x81749d,unlock:5,flying:true},
  colossus:{name:'Iron Colossus',icon:'bot',desc:'A heavily armored siege unit built to outlast defenses.',cost:650,time:9,hp:2100,damage:155,speed:1.15,range:1.2,rate:1.45,space:7,color:0x7f9a98,unlock:6,target:'defense'}
+});
+// Original roster: unlocks are checked by the shared authoritative training rules.
+Object.assign(TROOPS,{
+ lancer:{name:'Sun Lancer',icon:'spear',desc:'Long spear reaches over the frontline.',cost:125,time:3,hp:230,damage:42,speed:2.2,range:2.1,rate:1,space:2,color:0xc79943,unlock:2,weapon:'spear'},
+ bomber:{name:'Powder Sapper',icon:'bomb',desc:'Explosive attacks deal triple damage to walls and splash nearby buildings.',cost:210,time:4,hp:145,damage:85,speed:2.2,range:2.8,rate:1.6,space:2,color:0x9b6445,unlock:3,wallPower:3,splash:1.5,weapon:'bomb'},
+ healer:{name:'Dawn Medic',icon:'heart',desc:'Follows wounded allies and restores their health. Cannot attack buildings.',cost:320,time:6,hp:260,damage:0,heal:48,speed:2,range:4,rate:1.4,space:4,color:0xd5c9a3,unlock:4,weapon:'heal'},
+ berserker:{name:'Frost Berserker',icon:'axe',desc:'Twin axes deliver rapid frontline strikes.',cost:300,time:5,hp:620,damage:82,speed:2.3,range:1.2,rate:.7,space:4,color:0x617f95,unlock:5,weapon:'axes'},
+ musketeer:{name:'Copper Musketeer',icon:'crosshair',desc:'Long-range rifle with a slow, powerful shot.',cost:330,time:5,hp:210,damage:155,speed:1.7,range:6,rate:2.1,space:3,color:0xa8754a,unlock:6,weapon:'rifle'},
+ sentinel:{name:'Obsidian Sentinel',icon:'shield',desc:'Tower shield and spear. A durable defense hunter.',cost:440,time:6,hp:1300,damage:82,speed:1.3,range:1.6,rate:1.4,space:5,color:0x424d67,unlock:7,target:'defense',weapon:'shield'},
+ assassin:{name:'Veil Assassin',icon:'swords',desc:'Fast dual daggers exploit exposed buildings.',cost:360,time:5,hp:300,damage:78,speed:3.5,range:1,rate:.55,space:3,color:0x615376,unlock:8,weapon:'daggers'},
+ frostweaver:{name:'Ice Weaver',icon:'snowflake',desc:'Ranged ice shards damage clustered buildings.',cost:460,time:6,hp:350,damage:110,speed:1.7,range:4.8,rate:1.6,space:4,color:0x74bfd0,unlock:9,splash:2,weapon:'ice'},
+ hammerguard:{name:'Rune Hammerguard',icon:'hammer',desc:'Heavy rune hammer crushes walls with fourfold damage.',cost:560,time:7,hp:1550,damage:180,speed:1.2,range:1.2,rate:1.8,space:6,color:0x8a7055,unlock:10,wallPower:4,weapon:'hammer'},
+ stormcaller:{name:'Storm Caller',icon:'zap',desc:'Lightning orb strikes groups from long range.',cost:600,time:7,hp:410,damage:165,speed:1.6,range:5.1,rate:1.8,space:5,color:0x657fb6,unlock:11,splash:2.5,weapon:'orb'},
+ valkyrie:{name:'Dawn Wing',icon:'bird',desc:'Winged spear fighter flies directly toward defenses.',cost:640,time:8,hp:1350,damage:150,speed:2.5,range:2.4,rate:1.3,space:6,color:0xcdb471,unlock:12,flying:true,target:'defense',weapon:'wings'},
+ drake:{name:'Crystal Drake',icon:'flame',desc:'Armored flying dragon breathes splashing crystal fire.',cost:900,time:10,hp:2550,damage:235,speed:1.5,range:3.6,rate:1.9,space:10,color:0x54a8b1,unlock:13,flying:true,splash:2.5},
+ duelist:{name:'Royal Duelist',icon:'sword',desc:'Agile rapier specialist with precise, rapid attacks.',cost:590,time:7,hp:790,damage:112,speed:2.7,range:1.5,rate:.65,space:5,color:0x973f64,unlock:14,weapon:'rapier'},
+ phoenix:{name:'Ash Phoenix',icon:'flame',desc:'A flying firebird whose flames splash across nearby buildings.',cost:1050,time:11,hp:1950,damage:210,speed:2.4,range:4.1,rate:1.6,space:9,color:0xe18441,unlock:15,flying:true,splash:3}
 });
 export const DEFENSES={tower:{range:8.3,damage:24,rate:.9},cannon:{range:7,damage:45,rate:1.25,groundOnly:true},mortar:{range:11,damage:65,rate:2.8,splash:2.6,groundOnly:true},wizard:{range:7,damage:40,rate:1.3,splash:2},air:{range:10,damage:105,rate:1.1,airOnly:true},tesla:{range:7,damage:33,rate:.5},inferno:{range:8.5,damage:65,rate:.35}};
 export const HEROES={
@@ -255,7 +272,7 @@ export function stepBattle(battle,dt,onEvent=()=>{}){
   if(battle.ended||!battle.started)return;
   battle.elapsed+=dt;tickEffects(battle,dt);X.combatTick(battle,dt);const alive=()=>battle.buildings.filter(b=>b.hp>0&&b.type!=='bomb');
   for(const u of battle.units){
-    if(u.hp<=0||u.pet&&X.PETS[u.type].heal)continue;const base=unitDefinition(u),def={...base,speed:u.speed||base.speed,range:u.range||base.range};const candidates=alive();if(!candidates.length)break;
+    if(u.hp<=0||u.pet&&X.PETS[u.type].heal)continue;const base=unitDefinition(u),def={...base,speed:u.speed||base.speed,range:u.range||base.range};if(def.heal){const allies=battle.units.filter(a=>a!==u&&a.hp>0&&a.hp<a.maxHp);u.cooldown=Math.max(0,(u.cooldown||0)-dt);if(allies.length){const t=allies.reduce((a,b)=>Math.hypot(a.x-u.x,a.z-u.z)<Math.hypot(b.x-u.x,b.z-u.z)?a:b),dx=t.x-u.x,dz=t.z-u.z,d=Math.hypot(dx,dz);u.facing=Math.atan2(dx,dz);u.moving=d>def.range;if(u.moving){const step=Math.min(def.speed*dt,d-def.range);u.x+=dx/d*step;u.z+=dz/d*step;}else if(u.cooldown<=0){t.hp=Math.min(t.maxHp,t.hp+def.heal*(1+((u.level||1)-1)*.18));u.cooldown=def.rate;u.swing=.24;}}else u.moving=false;continue;}const candidates=alive();if(!candidates.length)break;
     let targets=def.target==='defense'||u.type==='giant'?candidates.filter(b=>defenseStats(b)):candidates.filter(b=>b.type!=='wall');if(!targets.length)targets=candidates;
     let target=targets.reduce((a,b)=>Math.hypot(a.x-u.x,a.z-u.z)<Math.hypot(b.x-u.x,b.z-u.z)?a:b);
     if(!def.flying){const wall=candidates.filter(b=>b.type==='wall'&&segmentNear(u,target,b,.9)).sort((a,b)=>Math.hypot(a.x-u.x,a.z-u.z)-Math.hypot(b.x-u.x,b.z-u.z))[0];if(wall)target=wall;}
@@ -298,7 +315,8 @@ export function settleBattle(s,battle){
 
 export function flagAction(s,a,now=Date.now()){
  if(s.realm)return {error:'Flags belong in the home village.'};s.flags??=[];
- if(a.type==='flag-buy'){if(!COUNTRY_CODES.has(a.code))return {error:'Choose a country from the flag shop.'};if(s.flags.length>=30)return {error:'A village can display 30 flags.'};if(!canPlace(s,'flag',a.x,a.z))return {error:'Choose an open tile for the flag.'};if(s.gold<FLAG_COST)return {error:'Not enough gold.'};s.gold-=FLAG_COST;const flag={id:'flag-'+now+'-'+Math.floor(Math.random()*1e8),code:a.code,x:a.x,z:a.z};s.flags.push(flag);return {ok:true,flag};}
+ if(a.type==='flag-buy'){if(!COUNTRY_CODES.has(a.code))return {error:'Choose a country from the flag shop.'};if(s.flags.length>=30)return {error:'A village can display 30 flags.'};if(!canPlace(s,'flag',a.x,a.z))return {error:'Choose an open tile for the flag.'};if(s.gold<FLAG_COST)return {error:'Not enough gold.'};s.gold-=FLAG_COST;const flag={id:'flag-'+now+'-'+Math.floor(Math.random()*1e8),code:a.code,x:a.x,z:a.z};s.flags.push(flag);s.bannerCode=a.code;s.ownedFlags=[...new Set([...(s.ownedFlags||[]),...s.flags.map(f=>f.code)])];for(const f of s.flags)f.code=a.code;return {ok:true,flag};}
+ if(a.type==='flag-select'){if(!COUNTRY_CODES.has(a.code)||!([...(s.ownedFlags||[]),...s.flags.map(f=>f.code)].includes(a.code)))return {error:'Buy this country flag first.'};s.ownedFlags=[...new Set([...(s.ownedFlags||[]),...s.flags.map(f=>f.code)])];s.bannerCode=a.code;for(const f of s.flags)f.code=a.code;return {ok:true};}
  if(a.type==='flag-move'){const flag=s.flags.find(f=>f.id===a.id);if(!flag||!canPlace(s,'flag',a.x,a.z,flag.id))return {error:'Choose an open tile for the flag.'};flag.x=a.x;flag.z=a.z;return {ok:true,flag};}
  return {error:'Unknown flag action.'};
 }

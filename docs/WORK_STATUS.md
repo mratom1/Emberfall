@@ -28,3 +28,9 @@ No PostgreSQL/Redis implementation or production load benchmark has been complet
 ## Completion rule
 
 Use the full brief's 20 acceptance tests and 10 final deliverables as the checklist. Preserve previous gameplay work while implementing the backend. Record evidence and material blockers here. Production readiness is not complete merely because a plan, source ZIP, static preview or functional test suite exists.
+
+## v10 — mobile roster and battle controls
+
+Implemented responsive Army cards and continuously scrolling Hero gallery, removed Your Buildings, fixed pinch-release camera jumps, compacted the mobile battle HUD and hid home resources during combat. The roster now has 22 original troop types with distinct geometry, Barracks 1–15 unlocks and shared server training rules. Human models have faces, jointed limbs, hands, armor and distinct weapons; flying creatures and automata use their own bodies. Portraits and field units share constructors. Added support healing and additional splash/wall-breaking roles. Country ownership persists; selecting an owned design changes all poles and Town Hall/building banners.
+
+Device screenshots supplied by the user guided these changes. No browser/device visual verification was performed. Production PostgreSQL/Redis migration and measured 10k concurrent-user capacity remain pending as specified above.

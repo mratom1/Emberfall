@@ -1,3 +1,5 @@
+Mobile update v10: 22 original troops, rebuilt human and creature models, compact battle controls, responsive roster panels, stable pinch zoom, and village-wide country flags. See CHANGELOG.md and docs/WORK_STATUS.md for completed and pending work.
+
 # Emberfall — Kingdoms at War
 
 Version 9 adds matching 3D pictures throughout Build, Army and Heroes, and stronger level-based building HP with [recorded combat comparisons](docs/PICTURES_AND_BALANCE_V9.md). Version 8 fixes mouse placement and adds clickable upgrade progress bars above buildings and heroes, Gem completion, 20 illustrated home heroes, Town Hall/Barracks unlocks, bridge-side land at Town Hall 3/7/11, 0.48–6.5× zoom, detailed rotating 3D model previews, deployment on cleared building footprints, and 250 purchasable country/territory flags. See [Village update](docs/VILLAGE_UPDATE_V8.md) and [Raids and progression](docs/RAIDS_AND_PROGRESSION.md) for exact rules and preview/server differences.

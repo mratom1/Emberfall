@@ -5,3 +5,23 @@
 
 .model-picture{display:block;width:100%;height:auto;aspect-ratio:1;background:radial-gradient(ellipse at 50% 65%,#345344,#10251e 78%);border-radius:10px;object-fit:contain}.shop-model{max-height:200px;margin:0 auto 12px}.owned-model{width:64px;height:64px;flex:none}.owned-buildings>.btn{display:flex;align-items:center;gap:9px}.deploy-model{width:54px;height:54px}.hero-art .model-picture{border-radius:0}.hero-tile .hero-picture{aspect-ratio:1}.shop-card .card-badge{z-index:2}.hero-art:has(canvas){background-image:none}
 @container game (max-height:560px){.shop-model{max-height:150px}.deploy-model{width:44px;height:44px}}
+
+/* Modal content sizes against its own available width, including rotated phones. */
+.game-modal{overflow-x:hidden}.modal-body,.expansion-body,.card-grid,.shop-card{min-width:0;max-width:100%}.card-grid,.army-grid{grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr))}.shop-card canvas.shop-model{display:block;width:100%;max-width:100%;height:auto;aspect-ratio:1;object-fit:contain}.shop-card .btn{white-space:normal}.card-meta{flex-wrap:wrap}.hero-browser{align-items:stretch}.hero-gallery{max-height:none;align-content:start;grid-auto-rows:max-content}.hero-detail-card{align-self:start;position:sticky;top:0}.hero-tile .hero-art{flex-shrink:0;aspect-ratio:1}.hero-tile{height:auto;align-self:start}.hero-browser>*{min-width:0}
+@container game (max-height:620px){.modal-body{padding:14px 16px}.card-grid,.army-grid{grid-template-columns:repeat(auto-fit,minmax(min(190px,100%),1fr));gap:12px}.shop-card{padding:12px}.shop-card h3{font-size:20px}.shop-card .shop-model{max-height:170px}.hero-browser{grid-template-columns:minmax(0,40%) minmax(0,1fr);gap:12px}.hero-gallery{max-height:none;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.hero-detail-heading{flex-wrap:wrap}.hero-selected-picture{width:100px!important}.hero-detail-actions>.btn{min-width:0;flex-basis:100%}}
+@container game (max-width:740px){.hero-browser{grid-template-columns:minmax(0,38%) minmax(0,1fr)}.hero-gallery{grid-template-columns:repeat(2,minmax(0,1fr))}.hero-detail-card .hero-stats{grid-template-columns:minmax(0,1fr)}.army-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.shop-card .card-meta{gap:6px}.hero-detail-heading h3{overflow-wrap:anywhere}}
+
+.army-grid .shop-card{display:flex;flex-direction:column}.army-grid .shop-card>*{min-width:0;max-width:100%}
+/* Battle controls use the game dimensions rather than the unrotated device viewport. */
+#app:has(#battle-hud:not([hidden])) .topbar{display:none}
+#app:has(#battle-hud:not([hidden])) .left-rail{display:none}
+.game-compact .battle-top{top:8px;left:12px;right:auto;transform:none;max-width:calc(var(--game-width) - 180px);padding:7px 11px;gap:16px;border-radius:10px}
+.game-compact .battle-top strong{font-size:18px}.game-compact .battle-top small{font-size:12px}.game-compact .battle-top svg{width:17px;height:17px}
+.game-compact #raid-scout{top:8px;right:12px;left:auto;width:150px;padding:8px;border-radius:10px;font-size:13px}
+.game-compact #raid-scout>small{font-size:12px}.game-compact #raid-scout>strong{font-size:14px}.game-compact #raid-scout .scout-resources{gap:6px;font-size:13px;flex-wrap:wrap}.game-compact #raid-scout svg{width:15px;height:15px}.game-compact #raid-scout .btn{min-height:32px;padding:6px;font-size:13px}
+.game-compact .battle-hud{left:10px;right:10px;bottom:7px;padding:5px;gap:7px;max-width:calc(var(--game-width) - 20px)}
+.game-compact .deploy-card{width:62px;min-width:62px;min-height:65px;padding:4px;font-size:12px}.game-compact .deploy-card:has(.hero-art){min-width:62px}.game-compact .deploy-card .deploy-model,.game-compact .deploy-card .hero-art{width:36px;height:36px}.game-compact .deploy-card strong{font-size:13px}.game-compact .deploy-instruction{font-size:12px;margin:0 0 4px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.game-compact .retreat-btn,.game-compact .spell-button{min-width:62px;min-height:44px;padding:6px;font-size:13px}.game-compact .spell-button svg,.game-compact .retreat-btn svg{width:19px;height:19px}
+
+.game-compact .battle-top{min-width:0;width:auto}.game-compact .battle-clock>strong{font-size:20px!important}.game-compact .battle-stars{font-size:17px;letter-spacing:1px}.game-compact .deploy-wrapper{flex:1;min-width:0;overflow:hidden}.game-compact .deploy-cards{max-width:100%;width:100%;overflow-x:auto;justify-content:flex-start;gap:6px}.game-compact .deploy-instruction{padding:4px 7px}.game-compact #raid-scout>small:last-child{display:none}
+
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}

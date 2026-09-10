@@ -1,8 +1,8 @@
-import {COUNTRY_CODES,FLAG_COST} from './flags.js?v=11.0.0';
-import {EXTRA_HEROES,unlockedLand,landContains} from './content.js?v=11.0.0';
-import * as R from './raids.js?v=11.0.0';
-import * as Q from './quality.js?v=11.0.0';
-import * as X from './expansion.js?v=11.0.0';
+import {COUNTRY_CODES,FLAG_COST} from './flags.js?v=12.0.0';
+import {EXTRA_HEROES,unlockedLand,landContains} from './content.js?v=12.0.0';
+import * as R from './raids.js?v=12.0.0';
+import * as Q from './quality.js?v=12.0.0';
+import * as X from './expansion.js?v=12.0.0';
 export const SAVE_KEY = 'emberfall.kingdom.v1';
 export const TYPES = {
   hall: {name:'Town Hall',icon:'castle',desc:'The heart of your village. Upgrade to unlock stronger buildings and a larger army.',gold:0,elixir:0,size:3.7,hp:1600,max:1,time:30},
@@ -58,11 +58,12 @@ Object.assign(TROOPS,{
  duelist:{name:'Royal Duelist',icon:'sword',desc:'Agile rapier specialist with precise, rapid attacks.',cost:590,time:7,hp:790,damage:112,speed:2.7,range:1.5,rate:.65,space:5,color:0x973f64,unlock:14,weapon:'rapier'},
  phoenix:{name:'Ash Phoenix',icon:'flame',desc:'A flying firebird whose flames splash across nearby buildings.',cost:1050,time:11,hp:1950,damage:210,speed:2.4,range:4.1,rate:1.6,space:9,color:0xe18441,unlock:15,flying:true,splash:3}
 });
+for(const type of ['ranger','healer','frostweaver','valkyrie','duelist','assassin'])TROOPS[type].female=true;
 export const DEFENSES={tower:{range:8.3,damage:24,rate:.9},cannon:{range:7,damage:45,rate:1.25,groundOnly:true},mortar:{range:11,damage:65,rate:2.8,splash:2.6,groundOnly:true},wizard:{range:7,damage:40,rate:1.3,splash:2},air:{range:10,damage:105,rate:1.1,airOnly:true},tesla:{range:7,damage:33,rate:.5},inferno:{range:8.5,damage:65,rate:.35}};
 export const HEROES={
  ...EXTRA_HEROES,
  king:{name:'Ember King',icon:'crown',desc:'Frontline hero. Royal Fury heals and empowers nearby allies.',hp:2000,damage:100,speed:1.7,range:1.3,rate:1,unlock:2,color:0xc98544},
- queen:{name:'Moon Ranger',icon:'bow-arrow',desc:'Ranged hero. Moon Volley damages every standing defense.',hp:1300,damage:140,speed:2.1,range:5.6,rate:1,unlock:3,color:0x8768aa},
+ queen:{female:true,name:'Moon Ranger',icon:'bow-arrow',desc:'Ranged hero. Moon Volley damages every standing defense.',hp:1300,damage:140,speed:2.1,range:5.6,rate:1,unlock:3,color:0x8768aa},
  prince:{name:'Dusk Prince',icon:'moon',desc:'Flying hero. Nightfall damages and freezes nearby defenses.',hp:1750,damage:125,speed:2.1,range:4.4,rate:1.1,unlock:4,color:0x6d619c,flying:true},
  champion:{name:'Dawn Champion',icon:'shield',desc:'Defense hunter. Sun Shield strikes the four nearest defenses.',hp:2200,damage:160,speed:2.4,range:3.5,rate:1,unlock:7,color:0xdba253,target:'defense'},
  machine:{name:'Battle Machine',icon:'bot',desc:'Builder Base hero. Overdrive heals and empowers nearby troops.',hp:2400,damage:130,speed:1.5,range:1.4,rate:1.2,unlock:1,color:0x8daba6,builderOnly:true},
@@ -89,14 +90,16 @@ export function upgradeHero(s,type,now=Date.now()){
 export function brew(s,type,now=Date.now()){
  const d=SPELLS[type],forge=s.buildings.find(b=>b.type==='forge'&&!b.finishAt);if(!Object.hasOwn(SPELLS,type)||!forge||forge.level<d.unlock)return {error:'Upgrade your Spell Forge to unlock this spell.'};if(Object.values(s.spells).reduce((a,b)=>a+b,0)+s.spellQueue.length>=12)return {error:'Spell storage is full (12).'};if(s.elixir<d.cost)return {error:'Not enough elixir.'};s.elixir-=d.cost;s.spellQueue.push({type,finishAt:Math.max(now,s.spellQueue.at(-1)?.finishAt||0)+d.time*1000});return {ok:true};
 }
-export function clearObstacle(s,id,now=Date.now(),random=Math.random){const o=s.obstacles.find(o=>o.id===id);if(!o||o.finishAt)return {error:'Choose an uncleared obstacle.'};if(freeBuilders(s)<1)return {error:'A free builder is needed.'};const cost=o.type==='gem-box'?0:o.type==='tree'?75:120;if(s.gold<cost)return {error:'Not enough gold.'};s.gold-=cost;o.finishAt=now+(o.type==='tree'?8:12)*1000;o.gemReward=o.type==='gem-box'?R.GEM_BOX_REWARD:o.type==='tree'&&random()<.42?1+Math.floor(random()*6):0;return {ok:true};}
+export function clearObstacle(s,id,now=Date.now(),random=Math.random){const o=s.obstacles.find(o=>o.id===id);if(!o||o.finishAt)return {error:'Choose an uncleared obstacle.'};if(freeBuilders(s)<1)return {error:'A free builder is needed.'};const cost=o.type==='gem-box'?0:o.type==='tree'?75:120;if(s.gold<cost)return {error:'Not enough gold.'};s.gold-=cost;o.startedAt=now;o.finishAt=now+(o.type==='tree'?8:12)*1000;o.gemReward=o.type==='gem-box'?R.GEM_BOX_REWARD:o.type==='tree'&&random()<.42?1+Math.floor(random()*6):0;return {ok:true};}
 export function advanceProgression(s,now,events=[]){
  s.obstacles??=seedObstacles();s.heroes??=heroState();s.research??={};s.researchQueue??=[];s.spells??={thunder:2,heal:0,rage:0,freeze:0};s.spellQueue??=[];s.gems??=100;s.dark??=0;s.builders??=2;
  for(const o of s.obstacles.filter(o=>o.finishAt&&o.finishAt<=now)){s.gems+=o.gemReward||0;if(o.type==='gem-box')s.nextGemBoxAt=now+R.WEEK;events.push({kind:'obstacle',gems:o.gemReward||0});}s.obstacles=s.obstacles.filter(o=>!o.finishAt||o.finishAt>now);R.weeklyBox(s,now,events);
  for(const [type,h]of Object.entries(s.heroes))if(h.finishAt&&h.finishAt<=now){h.level++;delete h.finishAt;delete h.startedAt;events.push({kind:'hero',type});}
  for(const q of s.researchQueue.filter(q=>q.finishAt<=now)){s.research[q.type]=(s.research[q.type]||1)+1;events.push({kind:'research',type:q.type});}s.researchQueue=s.researchQueue.filter(q=>q.finishAt>now);
  for(const q of s.spellQueue.filter(q=>q.finishAt<=now)){s.spells[q.type]=(s.spells[q.type]||0)+1;events.push({kind:'spell',type:q.type});}s.spellQueue=s.spellQueue.filter(q=>q.finishAt>now);
- if(now>=(s.nextObstacleAt||now+1)){if(s.obstacles.length<28){for(let i=0;i<40;i++){const a=Math.random()*Math.PI*2,r=11+Math.random()*2.5,x=Math.round(Math.cos(a)*r*2)/2,z=Math.round(Math.sin(a)*r*2)/2;if(canPlace(s,'bomb',x,z)){s.obstacles.push({id:'tree-'+now,type:'tree',x,z});events.push({kind:'regrow'});break;}}}s.nextObstacleAt=now+1800000;}
+ s.nextObstacleAt??=now+1800000;
+ if(now>=s.nextObstacleAt){const attempts=Math.min(28,1+Math.floor((now-s.nextObstacleAt)/1800000)),regions=unlockedLand(s);for(let n=0;n<attempts&&s.obstacles.length<28;n++){for(let i=0;i<80;i++){const r=regions[Math.floor(Math.random()*regions.length)],x=Math.round((r.x1+1+Math.random()*(r.x2-r.x1-2))*2)/2,z=Math.round((r.z1+1+Math.random()*(r.z2-r.z1-2))*2)/2;if(canPlace(s,'bomb',x,z)&&!(x<-13&&z>10.5&&z<13.5)){const type=Math.random()<.72?'tree':'rock';s.obstacles.push({id:type+'-'+now+'-'+n,type,x,z});events.push({kind:'regrow',type});break;}}}s.nextObstacleAt=now+1800000;}
+
 }
 export function deployHero(s,battle,type,x,z,now=Date.now()){
  const root=s;s=X.wallet(s,battle);const level=battle.heroStock?.[type],def=HEROES[type];if(!level||!Object.hasOwn(HEROES,type)||battle.ended)return {error:'Hero is not ready.'};if(!canDeploy(battle,x,z))return {error:'Deploy outside standing buildings or inside a cleared area.'};

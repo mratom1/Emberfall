@@ -1,10 +1,11 @@
-import {LAND_REGIONS,unlockedLand,landContains} from './content.js?v=11.0.0';
-import {flagCanvas} from './flags.js?v=11.0.0';
-import {appearance} from './raids.js?v=11.0.0';
-import {gamePoint,gameDelta,isRotated} from './viewport.js?v=11.0.0';
-import {GRAPHICS, graphicsProfile, renderScale} from './graphics.js?v=11.0.0';
-import * as THREE from './assets/three.module.js?v=11.0.0';
-import {TYPES,TROOPS,HEROES,canPlace,canDeploy,unitDefinition} from './model.js?v=11.0.0';
+import {villageNavigator,advanceRoute} from './village-paths.js?v=12.0.0';
+import {LAND_REGIONS,unlockedLand,landContains} from './content.js?v=12.0.0';
+import {flagCanvas} from './flags.js?v=12.0.0';
+import {appearance} from './raids.js?v=12.0.0';
+import {gamePoint,gameDelta,isRotated} from './viewport.js?v=12.0.0';
+import {GRAPHICS, graphicsProfile, renderScale} from './graphics.js?v=12.0.0';
+import * as THREE from './assets/three.module.js?v=12.0.0';
+import {TYPES,TROOPS,HEROES,canPlace,canDeploy,unitDefinition} from './model.js?v=12.0.0';
 
 const C={grass:0x75a44e,grassLight:0x87b05a,grassDark:0x5c8c3f,dirt:0xc8b489,stone:0xc5c0a2,stoneDark:0x827f69,wall:0xd6c5a0,wood:0x72503c,timber:0x503e30,roof:0x984e3f,roofLight:0xbb6847,gold:0xe5bd57,iron:0x485452,leaf:0x407643,pine:0x335d3e,water:0x68a9a3};
 const materials=new Map();
@@ -33,7 +34,7 @@ function roof(parent,w,d,h,x,y,z,color=C.roof){
   for(const side of [-1,1]){const m=box(parent,Math.hypot(w/2,h),.075,d+.08,side<0?C.roofLight:C.roof,x+side*w/4,y+h/2,z);m.rotation.z=-side*Math.atan2(h,w/2);}
 }
 function windowBlock(p,x,y,z,w=.3,h=.5){box(p,w+.15,h+.12,.07,C.wood,x,y,z);box(p,w,h,.085,0x394538,x,y,z+.02);box(p,.055,h,.10,0xbeaa72,x,y,z+.035);}
-function banner(p,x,y,z,red=true){cyl(p,.033,.033,1.3,0xc5b08a,x,y+.3,z,5);const cloth=new THREE.Mesh(new THREE.PlaneGeometry(.65,.44,8,4),new THREE.MeshBasicMaterial({color:red?0xb75d42:0x315c60,side:THREE.DoubleSide,toneMapped:false}));cloth.position.set(x+.33,y+.65,z);cloth.userData.banner=true;p.add(cloth);cone(p,.075,.18,C.gold,x,y+1.03,z,4);}
+function banner(p,x,y,z,red=true){cyl(p,.033,.033,1.3,0xc5b08a,x,y+.3,z,5);const cloth=new THREE.Mesh(new THREE.PlaneGeometry(.65,.44,16,8),new THREE.MeshBasicMaterial({color:red?0xb75d42:0x315c60,side:THREE.DoubleSide,toneMapped:false}));cloth.position.set(x+.33,y+.65,z);cloth.userData.banner=true;p.add(cloth);cone(p,.075,.18,C.gold,x,y+1.03,z,4);}
 function barrel(p,x,y,z){cyl(p,.25,.25,.53,C.wood,x,y+.265,z,8);cyl(p,.26,.26,.065,C.iron,x,y+.12,z,8);cyl(p,.26,.26,.065,C.iron,x,y+.4,z,8);cyl(p,.22,.22,.018,0xa78358,x,y+.54,z,8);}
 function stairs(p,x,z,width=1){for(let i=0;i<3;i++)box(p,width,.12*(i+1),.3,C.stone,x,.06*(i+1),z-i*.22);}
 function smallTower(p,x,z,h=2.2){
@@ -193,10 +194,11 @@ function tree(parent,x,z,scale,kind,rand){
 }
 // Shared sculpted anatomy keeps roster portraits identical to field characters.
 function humanBody(body,type,color,width=.57){
+ const female=!!(HEROES[type]?.female||TROOPS[type]?.female);width*=female?.9:1;
  const seed=[...type].reduce((n,c)=>n+c.charCodeAt(0),0),skin=[0xd8aa7b,0xb97e57,0x8e5b42,0xe5bb94][seed%4],hair=[0x302a28,0x653a25,0xb9a278,0x303d48][seed%4];
  const oval=(x,y,z,sx,sy,sz,c)=>{const m=mesh(body,new THREE.SphereGeometry(1,16,12),c,x,y,z);m.scale.set(sx,sy,sz);return m;};
  const limb=(a,b,r,c)=>{const from=new THREE.Vector3(...a),to=new THREE.Vector3(...b),d=to.clone().sub(from),m=cyl(body,r*.85,r,d.length(),c,...from.clone().add(to).multiplyScalar(.5).toArray(),10);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());};
- oval(0,1.02,0,width*.51,.29,.20,color);oval(0,.74,0,width*.40,.17,.17,0x3d4244);
+ oval(0,1.02,0,width*(female?.46:.54),.29,.20,color);oval(0,.74,0,width*(female?.47:.40),.17,.17,0x3d4244);
  cyl(body,.072,.088,.16,skin,0,1.31,0,12);
  for(const side of [-1,1]){const x=side*width*.26,forward=side<0?.075:-.045;
  limb([x,.75,0],[x*1.1,.43,forward],.105,0x40494b);oval(x*1.1,.43,forward,.095,.1,.095,color);limb([x*1.1,.43,forward],[x*1.18,.14,forward],.082,0x394047);oval(x*1.18,.10,forward+.075,.105,.1,.19,0x513c30);
@@ -205,12 +207,18 @@ function humanBody(body,type,color,width=.57){
  for(let j=0;j<3;j++)limb([hand-.035+j*.028,.79,.185],[hand-.035+j*.028,.73,.18],.013,skin);
  oval(side*.18,1.46,.0,.035,.068,.044,skin);
  }
- oval(0,1.47,.012,.176,.213,.159,skin);oval(0,1.62,-.045,.182,.092,.164,hair);
+ oval(0,1.47,.012,female?.157:.18,.213,.159,skin);oval(0,1.365,.075,female?.105:.143,.065,.096,skin);oval(0,1.62,-.045,.182,.092,.164,hair);
  for(let j=0;j<5;j++)oval((j-2)*.064,1.63+Math.sin(j)*.02,.02,.052,.07,.14,hair);
- for(const side of [-1,1]){oval(side*.063,1.50,.153,.039,.022,.016,0xf2e9d7);oval(side*.063,1.50,.169,.015,.016,.008,0x294647);box(body,.075,.018,.016,hair,side*.065,1.542,.158).rotation.z=side*.08;}
+ for(const side of [-1,1]){oval(side*.063,1.50,.153,.039,.022,.016,0xf2e9d7);oval(side*.063,1.50,.169,.015,.016,.008,0x294647);box(body,.075,female?.012:.023,.016,hair,side*.065,1.542,.158).rotation.z=side*.08;}
  oval(0,1.445,.164,.029,.04,.035,skin);box(body,.069,.012,.012,0x824c40,0,1.395,.151);
  box(body,width*.82,.067,.37,0x745135,0,.79,0);box(body,.11,.08,.04,0xd4b46d,0,.79,.20);
- if(seed%3===0)for(const side of [-1,1])oval(side*.14,1.35,-.08,.066,.24,.09,hair);
+ if(female){for(const side of [-1,1]){oval(side*.17,1.36,-.09,.066,.28,.10,hair);for(let n=0;n<5;n++)oval(side*(.19+n*.008),1.35-n*.07,-.12,.045,.054,.054,hair);mesh(body,new THREE.TorusGeometry(.04,.009,6,12),0xe5c778,side*.185,1.39,.035);}const braid=oval(0,1.46,-.2,.075,.28,.08,hair);braid.rotation.x=-.25;}
+ else if(seed%3===0){oval(0,1.345,.115,.13,.075,.1,hair);for(const side of [-1,1])oval(side*.048,1.397,.16,.055,.023,.035,hair);}
+ // Layered fitted armor, collar, embossed center, and a lined traveling cloak.
+ const trim=0xcdb37d;for(const side of [-1,1]){const plate=oval(side*width*.22,1.065,.173,width*.23,.15,.057,color);plate.rotation.z=side*.12;for(let n=0;n<3;n++)oval(side*width*.3,.96+n*.07,.205,.014,.014,.014,trim);}
+ const collar=mesh(body,new THREE.TorusGeometry(.105,.027,8,20),trim,0,1.275,0);collar.rotation.x=Math.PI/2;mesh(body,new THREE.OctahedronGeometry(.05),0x8acdd0,0,1.14,.225);
+ for(let n=0;n<4;n++){const panel=box(body,width*.8,.085,.055,n%2?color:trim,0,.88-n*.075,.187);panel.rotation.x=-.08;}
+
  return {skin,oval};
 }
 function troopBody(body,type,def){
@@ -308,6 +316,7 @@ export function makeUnit(type,enemy=false,record={}){
    box(body,.42+stage*.035,.32+stage*.035,.12,metal,0,.77,.27);
    for(const side of [-1,1]){mesh(body,new THREE.SphereGeometry(.13+stage*.027,12,8),metal,side*.32,.9,.02);box(body,.13,.25+stage*.025,.12,metal,side*.15,.28,.15);}
    if(stage>=2){cone(body,.23,.26,metal,0,1.78,0,12);box(body,.5,.65,.055,metal,0,.77,-.22);for(const side of [-1,1]){const pauldron=mesh(body,new THREE.SphereGeometry(1,24,16),metal,side*.34,1.16,0);pauldron.scale.set(.19,.13,.22);const greave=mesh(body,new THREE.SphereGeometry(1,24,16),metal,side*.17,.30,.08);greave.scale.set(.105,.21,.11);}}
+   if(stage>=3)for(const side of [-1,1]){const bracer=mesh(body,new THREE.SphereGeometry(1,28,18),metal,side*.43,.89,.13);bracer.scale.set(.095,.16,.10);}
    if(stage>=3)for(const side of [-1,1])cone(body,.085,.32+stage*.04,metal,side*.33,1.23,0,6).rotation.z=side*.45;
    if(stage>=4){mesh(body,new THREE.OctahedronGeometry(.14),0x9ae9ee,0,.83,.37);for(let j=0;j<stage;j++)box(body,.055,.15,.07,metal,(j-2)*.08,1.52,.03);}
   }
@@ -345,7 +354,7 @@ export class World{
     for(let i=0;i<26;i++)box(g,.34,.13,1.82,0xb09969,-23.1+i*.34,.21,12);
     for(const z of [11.18,12.82]){box(g,8.9,.1,.1,C.wood,-18.7,.78,z);for(let x=-23;x<-14.7;x+=1.25)box(g,.12,.9,.12,C.wood,x,.52,z);}
     for(let i=0;i<164;i++){
-      const x=(r()-.5)*65,z=(r()-.5)*65;if(Math.abs(x)<17&&Math.abs(z)<17||landContains(LAND_REGIONS.slice(1),x,z,-1))continue;if(z>10&&Math.abs(x)<2.8)continue;if(Math.abs(x-(-18+Math.sin(z*.18)*2.2))<2)continue;tree(g,x,z,.62+r()*.73,r(),r);
+      const x=(r()-.5)*65,z=(r()-.5)*65;if(Math.abs(x)<17&&Math.abs(z)<17||landContains(LAND_REGIONS.slice(1),x,z,-1))continue;if(z>10&&Math.abs(x)<2.8)continue;if(x>-24&&x<-14&&z>10.5&&z<13.5)continue;if(Math.abs(x-(-18+Math.sin(z*.18)*2.2))<2)continue;tree(g,x,z,.62+r()*.73,r(),r);
     }
     // Patches of wildflowers stay well away from interactive building footprints.
     for(let i=0;i<220;i++){const x=(r()-.5)*30,z=(r()-.5)*30;if(Math.abs(x)<9.9&&Math.abs(z)<9.9)continue;const m=cone(g,.04+r()*.04,.2+r()*.2,0x94b76a,x,.1,z,3);m.rotation.z=(r()-.5)*.4;if(r()>.75)sphere(g,.06,0xe1c679,x,.3,z);}
@@ -406,7 +415,7 @@ export class World{
         coin.position.set(0,b.type==='well'?3.4:2.8,0);model.add(coin);this.coins.push({coin,b,base:coin.position.y});
       }
     }
-    if(!battle){for(let i=0;i<7;i++){const v=makeUnit(i%3===0?'ranger':'guardian');v.scale.multiplyScalar(.66);this.actors.add(v);this.villagers.push({model:v,phase:i*.94,route:i%3,speed:.15+i*.025});}}
+    // Only owned troops are visible; there are no decorative wandering soldiers.
   }
   replaceBuilding(b){const old=this.buildingMap.get(b.id);if(old){disposeGroup(old);this.structures.remove(old);}this.rebuild([...this.buildingMap.values()].map(v=>v.userData.building).filter(x=>x.id!==b.id).concat(b),false);}
   setSelection(b){this.selected=b;if(b){const radius=TYPES[b.type].size*.7;this.selection.position.set(b.x,0,b.z);this.selection.scale.set(radius,1,radius);this.selection.visible=true;}else this.selection.visible=false;}
@@ -426,11 +435,20 @@ export class World{
     for(const [type,h]of Object.entries(heroes))if(h.level||h.finishAt){const slot=index++,c=camps[slot%Math.max(1,camps.length)]||camp,a=-Math.PI/2+(Math.floor(slot/Math.max(1,camps.length))%8)*Math.PI/4,radius=2.3+Math.floor(slot/Math.max(1,camps.length)/8)*1.35,model=makeUnit(type,false,{hero:true,level:h.level});model.position.set(c.x+Math.cos(a)*radius,.05,c.z+Math.sin(a)*radius);model.rotation.y=-a;model.userData.baseY=.05;model.userData.resting=!!h.finishAt||h.recoverAt>Date.now();model.traverse(o=>o.userData.heroType=type);if(model.userData.resting){model.scale.y*=.75;model.rotation.z=.08;}this.heroVisitors.add(model);}
   }
   setCampArmy(s,battle){
-    this.campArmy??=new THREE.Group();if(!this.campArmy.parent)this.scene.add(this.campArmy);this.campArmy.visible=!battle;
-    const camps=s.buildings.filter(b=>b.type==='camp'&&!b.constructing);const sig=JSON.stringify([s.army,s.research,camps.map(c=>[c.x,c.z,c.level])]);if(this.campArmySig===sig)return;this.campArmySig=sig;disposeGroup(this.campArmy);this.campArmy.clear();if(!camps.length)return;
-    let j=0;for(const [type,count]of Object.entries(s.army))for(let k=0;k<Math.min(count,5)&&j<30;k++){
-      if(!TROOPS[type])continue;const camp=camps[j%camps.length],slot=Math.floor(j/camps.length),col=slot%5,row=Math.floor(slot/5);const model=makeUnit(type,false,{level:s.research?.[type]||1});model.scale.multiplyScalar(.72);model.position.set(camp.x+(col-2)*.62,.03,camp.z+1.55+row*.68);model.rotation.y=.3;model.userData.phase=j*.8;model.traverse(o=>o.userData.campUnit=true);this.campArmy.add(model);j++;
+    this.campArmy??=new THREE.Group();if(!this.campArmy.parent)this.scene.add(this.campArmy);this.campArmy.visible=!battle;if(battle)return;const realm=s.realm||'home';if(this.armyRealm&&this.armyRealm!==realm){disposeGroup(this.campArmy);this.campArmy.clear();this.campArmySig=null;}this.armyRealm=realm;
+    const layout=JSON.stringify([s.realm,s.buildings.map(b=>[b.id,b.type,b.x,b.z,b.level]),s.obstacles?.map(o=>[o.id,o.x,o.z]),s.flags]);
+    const layoutChanged=this.armyLayout!==layout;if(layoutChanged){this.armyLayout=layout;this.armyNavigator=villageNavigator(s);}
+    const sig=JSON.stringify([layout,s.army,s.research]);if(this.campArmySig===sig)return;const first=!this.campArmySig;this.campArmySig=sig;
+    const camps=s.buildings.filter(b=>b.type==='camp'&&!b.constructing),barracks=s.buildings.filter(b=>b.type==='barracks'&&!b.constructing);if(!camps.length){disposeGroup(this.campArmy);this.campArmy.clear();return;}
+    const existing=new Map(this.campArmy.children.map(m=>[m.userData.armyKey,m])),keep=new Set();let index=0;
+    for(const [type,count] of Object.entries(s.army))for(let k=0;k<count;k++){
+      if(!TROOPS[type])continue;const key=type+':'+k,camp=camps[index%camps.length],slot=Math.floor(index/camps.length),seat=this.armyNavigator.nearest({x:camp.x+((slot%5)-2)*.55,z:camp.z+1.9+Math.floor(slot/5)*.55})||{x:camp.x,z:camp.z+1.9};let model=existing.get(key);const level=s.research?.[type]||1;
+      const previous=model?.position.clone();if(model&&model.userData.level!==level){disposeGroup(model);this.campArmy.remove(model);model=null;}
+      if(!model){model=makeUnit(type,false,{level});model.scale.multiplyScalar(.72);model.userData.armyKey=key;model.userData.phase=index*.8;model.traverse(o=>o.userData.campUnit=true);const eligible=barracks.filter(b=>b.level>=(TROOPS[type].unlock||1)),source=eligible[index%Math.max(1,eligible.length)]||barracks[0]||camp,door={x:source.x,z:source.z+TYPES[source.type].size/2+.5};const origin=previous||(first?seat:this.armyNavigator.nearest(door)||door);model.position.set(origin.x,.03,origin.z);this.campArmy.add(model);}
+      if(layoutChanged||!existing.has(key)||previous&&existing.get(key)!==model){const route=this.armyNavigator.route(model.position,seat,model.userData.flying);model.userData.path=route||[];model.userData.routeBlocked=!route;if(!route&&!this.armyPathNotice){this.armyPathNotice=true;this.callbacks?.notice?.('A camp route is blocked. Leave a path from Barracks to Camp.');}}
+      model.userData.destination=seat;keep.add(key);index++;
     }
+    for(const [key,model] of existing)if(!keep.has(key)){disposeGroup(model);this.campArmy.remove(model);}
   }
 
   paintPortrait(canvas,type,level=1){const key=type+':'+level;
@@ -492,7 +510,9 @@ export class World{
   animate(dt,t){
     for(const item of this.coins){item.coin.position.y=item.base+Math.sin(t*2.1)*.13;item.coin.rotation.y=t*.9;item.coin.visible=(item.b.stored||0)>3&&!item.b.finishAt;}
     for(const v of this.villagers){const a=t*v.speed+v.phase;if(v.route===0){v.model.position.set(Math.sin(a)*.32,.015,Math.cos(a)*7);v.model.rotation.y=Math.sin(a)>0?Math.PI:0;}else if(v.route===1){v.model.position.set(Math.cos(a)*6,.015,2+Math.sin(a)*.28);v.model.rotation.y=Math.sin(a)>0?-Math.PI/2:Math.PI/2;}else{v.model.position.set(2.6+Math.cos(a)*1.5,.015,6.7+Math.sin(a)*.6);v.model.rotation.y=-a;}v.model.position.y+=animateUnit(v.model,t,true,v.phase);}
-    for(const group of [this.heroVisitors,this.campArmy])for(const model of group?.children||[]){if(model.userData.resting){animateUnit(model,t,false);continue;}model.userData.homePosition??=model.position.clone();const h=model.userData.homePosition,phase=model.userData.phase||h.x,a=t*.55+phase;model.position.set(h.x+Math.cos(a)*.3,.03+animateUnit(model,t,true,phase),h.z+Math.sin(a)*.3);model.rotation.y=-a;}
+    for(const group of [this.heroVisitors])for(const model of group?.children||[]){if(model.userData.resting){animateUnit(model,t,false);continue;}model.userData.homePosition??=model.position.clone();const h=model.userData.homePosition,phase=model.userData.phase||h.x,a=t*.55+phase;model.position.set(h.x+Math.cos(a)*.3,.03+animateUnit(model,t,true,phase),h.z+Math.sin(a)*.3);model.rotation.y=-a;}
+    for(const model of this.campArmy?.children||[]){const path=model.userData.path,moving=!!path?.length,turn=advanceRoute(model.position,path,dt*1.5);if(turn!==null)model.rotation.y=turn;const bridge=model.position.x<-14.5&&model.position.x>-23.5&&Math.abs(model.position.z-12)<1;model.position.y=(bridge?.3:.03)+animateUnit(model,t,moving,model.userData.phase);}
+    this.scene.traverse(o=>{if(!o.userData.banner&&!o.userData.flagCloth)return;const p=o.geometry?.attributes.position;if(!p)return;const width=o.geometry.parameters.width;for(let i=0;i<p.count;i++){const u=(p.getX(i)+width/2)/width;p.setZ(i,u*(Math.sin(u*8-t*4)*.09+Math.sin(u*15-t*6)*.025));}p.needsUpdate=true;});
     for(const cloud of this.clouds.children){cloud.position.x+=dt*cloud.userData.speed;if(cloud.position.x>50)cloud.position.x=-50;}
     for(let i=this.effects.length-1;i>=0;i--){const e=this.effects[i];e.age+=dt;const u=e.age/e.life;if(e.kind==='damage'){e.mesh.position.y+=dt*.9;e.mesh.material.opacity=Math.max(0,1-u);}else if(e.kind==='projectile'){e.mesh.position.lerpVectors(e.from,e.to,u);e.mesh.position.y+=Math.sin(u*Math.PI)*.6;}else if(e.kind==='particle'){e.mesh.position.x+=e.vx*dt;e.mesh.position.y+=e.vy*dt;e.mesh.position.z+=e.vz*dt;e.vy-=8*dt;e.mesh.rotation.x+=dt*4;e.mesh.scale.setScalar(Math.max(.05,1-u));}else if(e.kind==='ring'){e.mesh.material.opacity=.5*(1-u);e.mesh.scale.setScalar(.6+u*.5);}else if(e.kind==='flash')e.mesh.visible=Math.floor(t*30)%2===0;
       if(e.age>=e.life){this.particles.remove(e.mesh);if(e.kind==='damage')e.mesh.material.map.dispose();else e.mesh.geometry.dispose();if(![...materials.values()].includes(e.mesh.material))e.mesh.material.dispose();this.effects.splice(i,1);}}

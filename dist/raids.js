@@ -1,5 +1,5 @@
-import {unlockedLand} from './content.js?v=11.0.0';
-import * as M from './model.js?v=11.0.0';
+import {unlockedLand} from './content.js?v=12.0.0';
+import * as M from './model.js?v=12.0.0';
 
 export const WEEK = 7 * 86400000;
 export const DEFENSE_INTERVAL = 6 * 3600000;

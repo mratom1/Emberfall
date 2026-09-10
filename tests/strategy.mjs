@@ -21,6 +21,6 @@ for(const type of ['wall','hall','cannon','barracks']){
  const size=g=>new THREE.Box3().setFromObject(g).getSize(new THREE.Vector3());assert.ok(size(high).y>size(low).y*1.2,type+' grows structurally');
  let a=0,z=0;low.traverse(o=>a+=o.geometry?.attributes.position.count||0);high.traverse(o=>z+=o.geometry?.attributes.position.count||0);assert.ok(z>a*1.2,type+' gains geometry');
 }
-for(const type of ['guardian','ranger','king']){let a=0,z=0;makeUnit(type,false,{level:1}).traverse(o=>a+=o.geometry?.attributes.position.count||0);makeUnit(type,false,{level:type==='king'?50:15}).traverse(o=>z+=o.geometry?.attributes.position.count||0);assert.ok(type==='king'?z-a>=2000:z>a*1.3,type);}
+for(const type of ['guardian','ranger','king']){let a=0,z=0;makeUnit(type,false,{level:1}).traverse(o=>a+=o.geometry?.attributes.position.count||0);makeUnit(type,false,{level:type==='king'?50:15}).traverse(o=>z+=o.geometry?.attributes.position.count||0);assert.ok(z-a>=2000,type);}
 for(let level=1;level<15;level++)assert.ok(M.buildingHp({type:'wall',level:level+1})>M.buildingHp({type:'wall',level}));
 console.log('PASS Buildings/walls grow in height and geometry; troops/heroes gain physical armor; wall HP rises at every level');

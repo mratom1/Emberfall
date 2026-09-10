@@ -11,11 +11,11 @@
   <meta name="description" content="Build your village, raise an army, and conquer the wilds. Play Emberfall, an original 3D strategy game.">
   <title>Emberfall — Kingdoms at War</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect rx='16' width='64' height='64' fill='%23182721'/%3E%3Cpath d='M16 14h32v27L32 54 16 41z' fill='%23dbaa56'/%3E%3Cpath d='m37 19-16 18h12l-6 12 18-20H33z' fill='%23593226'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="/style.css?v=13.0.0">
-  <link rel="stylesheet" href="/theme.css?v=13.0.0">
-  <link rel="stylesheet" href="/village-ui.css?v=13.0.0">
+  <link rel="stylesheet" href="/style.css?v=14.0.0">
+  <link rel="stylesheet" href="/theme.css?v=14.0.0">
+  <link rel="stylesheet" href="/village-ui.css?v=14.0.0">
   <script src="/assets/lucide.min.js" defer></script>
-  <script type="module" src="/game.js?v=13.0.0"></script>
+  <script type="module" src="/game.js?v=14.0.0"></script>
 </head>
 <body>
   <main id="app" aria-label="Emberfall strategy game">
@@ -75,7 +75,7 @@
 
     <button id="connection-status" class="connection-status" type="button" role="status" aria-live="polite" hidden></button><div class="toast-stack" id="toasts" role="status" aria-live="polite"></div>
     <div class="loading" id="loading"><div class="loading-crest"><i data-lucide="castle"></i></div><strong>EMBERFALL</strong><span>Preparing your kingdom…</span><div class="loading-track"><span></span></div></div>
-    <dialog id="kingdom-menu" class="game-modal kingdom-menu"><div class="modal-header"><div><small>EMBERFALL</small><h2>Your kingdom</h2></div><button id="close-kingdom" class="close-btn" aria-label="Close kingdom menu"><i data-lucide="x"></i></button></div><div class="kingdom-menu-body"></div></dialog>
+    <dialog id="kingdom-menu" class="game-modal kingdom-menu"><div class="modal-header"><div><small>EMBERFALL</small><h2>Your kingdom</h2></div><button id="close-kingdom" class="close-btn" aria-label="Close kingdom menu"><i data-lucide="x"></i></button></div><div class="kingdom-menu-body"><button class="btn" data-social="profile">Profile & Friends</button></div></dialog>
     <dialog id="modal" class="game-modal"><div id="modal-content"></div></dialog>
   </main>
 </body>

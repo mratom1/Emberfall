@@ -1,5 +1,5 @@
-import {HEROES,TROOPS,TYPES} from './model.js?v=13.0.0';
-import {appearance} from './raids.js?v=13.0.0';
+import {HEROES,TROOPS,TYPES} from './model.js?v=14.0.0';
+import {appearance} from './raids.js?v=14.0.0';
 export function modelPortrait(kind,type,level=1,extra=''){
  const def=(kind==='building'?TYPES:kind==='hero'?HEROES:TROOPS)[type];if(!def)return '';
  level=Math.max(1,Math.min(kind==='hero'?50:15,Math.floor(level)||1));

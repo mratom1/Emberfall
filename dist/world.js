@@ -1,11 +1,11 @@
-import {villageNavigator,advanceRoute} from './village-paths.js?v=13.0.0';
-import {LAND_REGIONS,unlockedLand,landContains} from './content.js?v=13.0.0';
-import {flagCanvas} from './flags.js?v=13.0.0';
-import {appearance} from './raids.js?v=13.0.0';
-import {gamePoint,gameDelta,isRotated} from './viewport.js?v=13.0.0';
-import {GRAPHICS, graphicsProfile, renderScale} from './graphics.js?v=13.0.0';
-import * as THREE from './assets/three.module.js?v=13.0.0';
-import {TYPES,TROOPS,HEROES,canPlace,canDeploy,unitDefinition} from './model.js?v=13.0.0';
+import {villageNavigator,advanceRoute} from './village-paths.js?v=14.0.0';
+import {LAND_REGIONS,unlockedLand,landContains} from './content.js?v=14.0.0';
+import {flagCanvas} from './flags.js?v=14.0.0';
+import {appearance} from './raids.js?v=14.0.0';
+import {gamePoint,gameDelta,isRotated} from './viewport.js?v=14.0.0';
+import {GRAPHICS, graphicsProfile, renderScale} from './graphics.js?v=14.0.0';
+import * as THREE from './assets/three.module.js?v=14.0.0';
+import {TYPES,TROOPS,HEROES,canPlace,canDeploy,unitDefinition} from './model.js?v=14.0.0';
 
 const C={grass:0x75a44e,grassLight:0x87b05a,grassDark:0x5c8c3f,dirt:0xc8b489,stone:0xc5c0a2,stoneDark:0x827f69,wall:0xd6c5a0,wood:0x72503c,timber:0x503e30,roof:0x984e3f,roofLight:0xbb6847,gold:0xe5bd57,iron:0x485452,leaf:0x407643,pine:0x335d3e,water:0x68a9a3};
 const materials=new Map();
@@ -361,12 +361,13 @@ export class World{
     }
     // Patches of wildflowers stay well away from interactive building footprints.
     for(let i=0;i<220;i++){const x=(r()-.5)*30,z=(r()-.5)*30;if(Math.abs(x)<9.9&&Math.abs(z)<9.9)continue;const m=cone(g,.04+r()*.04,.2+r()*.2,0x94b76a,x,.1,z,3);m.rotation.z=(r()-.5)*.4;if(r()>.75)sphere(g,.06,0xe1c679,x,.3,z);}
-    // Layered mountain ranges enclose every side of the playable valley.
-    for(let x=-86;x<=62;x+=8)for(let z=-62;z<=62;z+=8){if((x>-19&&x<23&&z>-22&&z<23)||(x>-58&&x<-12&&z>-21&&z<26))continue;const height=(z<0?8:5)+r()*9,px=x+(r()-.5)*4,pz=z+(r()-.5)*4;const mountain=rock(g,1,0x718378,px,height*.36,pz);mountain.scale.set(6+r()*4,height*.7,6+r()*4);const ridge=cone(g,3+r()*2,height*.7,0x83948a,px,height*.68,pz,6);ridge.rotation.y=r()*6;if(height>13)cone(g,1.5,height*.19,0xd1dbcb,px,height*1.07,pz,6);}
+    // An open river valley with irregular distant ridges, low wooded foothills in front.
+    for(let i=0;i<65;i++){const x=-85+r()*150,z=-48-r()*30,height=9+r()*17;const hill=rock(g,1,0x607d77,x,height*.31,z);hill.scale.set(7+r()*9,height*.65,7+r()*8);const peak=cone(g,4+r()*4,height*.65,0x80928a,x,height*.7,z,7);peak.rotation.y=r()*6;if(height>21)cone(g,1.8,height*.14,0xdce4d7,x,height*1.04,z,7);}
+    for(let i=0;i<38;i++){const x=i%2?-73-r()*18:37+r()*20,z=-38+r()*82,height=2+r()*5;const hill=rock(g,1,0x6b8d58,x,height*.24,z);hill.scale.set(7+r()*7,height*.5,7+r()*9);for(let j=0;j<3;j++)tree(g,x+(r()-.5)*9,z+(r()-.5)*9,.6+r()*.8,r(),r);}
     this.scenery.add(merged(g));
     this.riverFlow=new THREE.Group();for(let i=0;i<58;i++){const foam=box(this.riverFlow,.18+r()*.34,.018,.45+r()*.7,0xbde4d7,0,.012,0);foam.material=new THREE.MeshBasicMaterial({color:0xbde4d7,transparent:true,opacity:.45});foam.userData.phase=i/58;foam.userData.lane=(r()-.5)*2.1;foam.castShadow=false;}this.scene.add(this.riverFlow);
 
-    const clouds=new THREE.Group();for(let i=0;i<64;i++){const angle=i/64*Math.PI*2,cloud=new THREE.Group(),x=-12+Math.cos(angle)*(67+r()*7),z=Math.sin(angle)*(50+r()*8);for(let j=0;j<7;j++){const puff=mesh(cloud,new THREE.SphereGeometry(1,12,8),0xe8efeb,x+(j-3)*2.7,9+r()*4,z+(r()-.5)*5);puff.scale.set(4+r()*3,1.6+r()*1.8,3+r()*3);}const m=merged(cloud);m.material.dispose();m.material=new THREE.MeshBasicMaterial({color:0xe5eeea,transparent:true,opacity:.88,depthWrite:false});m.castShadow=false;m.receiveShadow=false;m.userData.phase=i;clouds.add(m);}this.clouds=clouds;this.scene.add(clouds);
+    const clouds=new THREE.Group();for(let i=0;i<44;i++){const angle=i/44*Math.PI*2,cloud=new THREE.Group(),x=-12+Math.cos(angle)*(94+r()*12),z=Math.sin(angle)*(78+r()*12);for(let j=0;j<7;j++){const puff=mesh(cloud,new THREE.SphereGeometry(1,12,8),0xe8efeb,x+(j-3)*2.7,9+r()*4,z+(r()-.5)*5);puff.scale.set(4+r()*3,1.6+r()*1.8,3+r()*3);}const m=merged(cloud);m.material.dispose();m.material=new THREE.MeshBasicMaterial({color:0xe5eeea,transparent:true,opacity:.65,depthWrite:false});m.castShadow=false;m.receiveShadow=false;m.userData.phase=i;clouds.add(m);}this.clouds=clouds;this.scene.add(clouds);
 
   }
   setTerritory(s,battle){

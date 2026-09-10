@@ -1,5 +1,5 @@
-import {TYPES} from './model.js?v=13.0.0';
-import {unlockedLand,landContains} from './content.js?v=13.0.0';
+import {TYPES} from './model.js?v=14.0.0';
+import {unlockedLand,landContains} from './content.js?v=14.0.0';
 // Half-tile navigation includes the real bridge at z=12, never the river.
 export function villageNavigator(s){
  const land=unlockedLand(s),blocked=(s.buildings||[]).filter(b=>!TYPES[b.type].decoration),obstacles=s.obstacles||[],flags=s.flags||[];

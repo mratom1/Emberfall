@@ -1,3 +1,4 @@
+import * as R from '../dist/raids.js';
 import {randomUUID} from 'node:crypto';
 import * as X from '../dist/expansion.js';
 
@@ -14,7 +15,9 @@ export function createFrontiers({db,M,getUser,stateOf,persist,fail}){
  }
  const putWar=w=>db.prepare('UPDATE wars SET state=?,status=? WHERE id=?').run(JSON.stringify(w),w.status,w.id);
  function score(w,side){const values=Object.values(w.best[side]);return {stars:values.reduce((n,v)=>n+v.stars,0),percent:values.reduce((n,v)=>n+v.percent,0)};}
- function closeWar(w,now){if(w.status==='ended')return w;const spent=['a','b'].every(side=>w.rosters[side].every(p=>w.attacks.filter(a=>a.attacker===p.id).length>=Math.min(2,w.rosters[side==='a'?'b':'a'].length)));if((now>=w.endsAt||spent)&&!(w.pending||[]).length){w.status='ended';const a=score(w,'a'),b=score(w,'b');w.winner=a.stars===b.stars?(a.percent===b.percent?'draw':a.percent>b.percent?'a':'b'):a.stars>b.stars?'a':'b';putWar(w);}return w;}
+ function closeWar(w,now){if(w.status==='ended')return w;
+ if(w.botClan&&!w.botPlayed&&now>=w.readyAt){w.botPlayed=true;for(const [i,bot] of w.rosters.b.entries())for(let turn=0;turn<Math.min(2,w.rosters.a.length);turn++){const target=w.rosters.a[(i+turn)%w.rosters.a.length],v=M.initialState(now);v.buildings=structuredClone(target.buildings);v.shieldUntil=0;R.ensure(v,now);v.raids.nextDefenseAt=0;const entry=R.simulateDefense(v,Math.random,now+i*10+turn),r=entry?.result||{stars:0,percent:0};w.attacks.push({attacker:bot.id,side:'b',target:target.id,stars:r.stars,percent:r.percent});const prior=w.best.b[target.id];if(!prior||r.stars>prior.stars||r.stars===prior.stars&&r.percent>prior.percent)w.best.b[target.id]={stars:r.stars,percent:r.percent};}putWar(w);}
+const spent=['a','b'].every(side=>w.rosters[side].every(p=>w.attacks.filter(a=>a.attacker===p.id).length>=Math.min(2,w.rosters[side==='a'?'b':'a'].length)));if((now>=w.endsAt||spent)&&!(w.pending||[]).length){w.status='ended';const a=score(w,'a'),b=score(w,'b');w.winner=a.stars===b.stars?(a.percent===b.percent?'draw':a.percent>b.percent?'a':'b'):a.stars>b.stars?'a':'b';putWar(w);}return w;}
  function readWar(id,now){const row=db.prepare('SELECT state FROM wars WHERE id=?').get(id);return row?closeWar(JSON.parse(row.state),now):null;}
  function roster(id,now){return members(id).slice(0,5).map(p=>{const s=stateOf(p,now);return {id:p.id,name:p.name,hall:M.hallLevel(s),buildings:structuredClone(s.buildings.filter(b=>!b.constructing))};});}
  function requireClan(user){if(!user.clan_id||!getClan(user.clan_id))fail('Join a clan first.');return getClan(user.clan_id);}
@@ -29,8 +32,11 @@ export function createFrontiers({db,M,getUser,stateOf,persist,fail}){
  }
  function handle(user,s,a,now){
   if(a.type==='war-start'){
-   const own=requireLeader(user),other=getClan(a.opponent);if(!other||other.id===own.id)fail('Choose another clan.');if(activeWar(own.id,now)||activeWar(other.id,now))fail('One of these clans is already at war.');
-   const ra=roster(own.id,now),rb=roster(other.id,now);const size=Math.min(ra.length,rb.length);if(!size)fail('Both clans need members.');const w={id:randomUUID(),names:{a:own.name,b:other.name},clans:{a:own.id,b:other.id},rosters:{a:ra.slice(0,size),b:rb.slice(0,size)},best:{a:{},b:{}},used:{},pending:[],attacks:[],claimed:[],status:'active',readyAt:now+60000,endsAt:now+86460000};db.prepare('INSERT INTO wars VALUES(?,?,?,?,?,?)').run(w.id,own.id,other.id,JSON.stringify(w),w.status,now);return {ok:true};
+   const own=requireLeader(user);if(activeWar(own.id,now))fail('Your clan is already at war.');const ra=roster(own.id,now);if(!ra.length)fail('Your clan needs members.');const average=ra.reduce((n,p)=>n+p.hall,0)/ra.length;
+   let other=a.opponent?getClan(a.opponent):db.prepare('SELECT * FROM clans WHERE id<>?').all(own.id).filter(c=>!activeWar(c.id,now)).map(c=>({c,r:roster(c.id,now)})).filter(x=>x.r.length&&Math.abs(x.r.reduce((n,p)=>n+p.hall,0)/x.r.length-average)<=2).sort((a,b)=>Math.abs(a.r.length-ra.length)-Math.abs(b.r.length-ra.length))[0]?.c;
+   if(a.opponent&&!other)fail('Clan not found.');if(other&&(other.id===own.id||activeWar(other.id,now)))fail('Choose an available rival clan.');
+   const botClan=!other;other??={id:'bot-'+randomUUID(),name:'Mountain Guard · AI'};const rb=botClan?ra.map((p,i)=>{const v=M.initialState(now);v.buildings.find(b=>b.type==='hall').level=p.hall;const rival=R.botVillage(v);return {id:'war-bot-'+i,name:rival.name,hall:rival.hall,buildings:rival.state.buildings};}):roster(other.id,now),size=Math.min(ra.length,rb.length);if(!size)fail('Both clans need members.');
+   const w={id:randomUUID(),botClan,names:{a:own.name,b:other.name},clans:{a:own.id,b:other.id},rosters:{a:ra.slice(0,size),b:rb.slice(0,size)},best:{a:{},b:{}},used:{},pending:[],attacks:[],claimed:[],status:'active',readyAt:now+60000,endsAt:now+86460000};db.prepare('INSERT INTO wars VALUES(?,?,?,?,?,?)').run(w.id,own.id,other.id,JSON.stringify(w),w.status,now);return {ok:true};
   }
   if(a.type==='war-claim'){
    const w=readWar(a.warId,now);const side=w&&['a','b'].find(k=>w.rosters[k].some(p=>p.id===user.id));if(!w||!side||w.status!=='ended'||w.claimed.includes(user.id))fail('No unclaimed war reward.');const win=w.winner===side,medals=win?80:w.winner==='draw'?50:35,gems=win?25:10;s.expansion.medals+=medals;s.gems+=gems;w.claimed.push(user.id);putWar(w);return {ok:true,medals,gems};

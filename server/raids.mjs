@@ -7,7 +7,7 @@ export function createRaids({db,getUser,stateOf,persist,fail,random}) {
     return db.prepare('SELECT id,name,state,clan_id FROM players WHERE id<>? ORDER BY updated_at DESC LIMIT 500').all(user.id).filter(u=>{
       if(user.clan_id&&u.clan_id===user.clan_id||busy(u.id))return false;
       const other=JSON.parse(u.state);
-      return Math.abs(M.hallLevel(other)-M.hallLevel(s))<=2 && (attackers ? now-(other.raids?.lastSeenAt||0)<15*60000 : !(other.shieldUntil>now));
+      return R.matchAllowed(s,other) && (attackers ? now-(other.raids?.lastSeenAt||0)<15*60000 : !(other.shieldUntil>now));
     });
   }
   function choose(user,s,now,defenderId) {
@@ -19,13 +19,13 @@ export function createRaids({db,getUser,stateOf,persist,fail,random}) {
       if(busy(defender.id))fail('This village is already in a battle.');
       const ds=stateOf(defender,now);
       if(ds.shieldUntil>now)fail('This village is protected by a Shield.');
-      if(Math.abs(M.hallLevel(ds)-M.hallLevel(s))>2)fail('Choose an opponent close to your Town Hall level.');
+      if(!R.matchAllowed(s,ds))fail('Choose an opponent in your matchmaking range.');
       return {user:defender,id:defender.id,name:defender.name,kind:'player',state:ds};
     }
     let pool=candidates(user,s,now);
     if(pool.length){
-      const nearest=Math.min(...pool.map(u=>Math.abs(M.hallLevel(JSON.parse(u.state))-M.hallLevel(s))));
-      pool=pool.filter(u=>Math.abs(M.hallLevel(JSON.parse(u.state))-M.hallLevel(s))===nearest);
+      const nearest=Math.min(...pool.map(u=>R.matchDistance(s,JSON.parse(u.state))));
+      pool=pool.filter(u=>R.matchDistance(s,JSON.parse(u.state))===nearest);
       const fresh=pool.filter(u=>!s.raids.recentOpponents.includes(u.id));if(fresh.length)pool=fresh;
       defender=getUser(pool[Math.min(pool.length-1,Math.floor(random()*pool.length))].id);
       s.raids.recentOpponents=[defender.id,...s.raids.recentOpponents.filter(id=>id!==defender.id)].slice(0,5);

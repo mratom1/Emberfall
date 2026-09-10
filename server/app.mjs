@@ -1,3 +1,4 @@
+import {createSocial} from './social.mjs';
 import * as R from '../dist/raids.js';
 import {createRaids} from './raids.mjs';
 import {createOAuth, callbackHTML} from './oauth.mjs';
@@ -18,7 +19,7 @@ import {verifyWebhook,createCheckout,packById} from './payments.mjs';
 const here=path.dirname(fileURLToPath(import.meta.url)),root=path.resolve(here,'../dist');
 function fail(message,status=400){throw Object.assign(new Error(message),{status});}
 const hash=s=>createHash('sha256').update(s).digest('hex');
-const safeUser=u=>({id:u.id,name:u.name,registered:!!(u.password_hash||u.providers?.length),hasPassword:!!u.password_hash,providers:u.providers||[],clanId:u.clan_id});
+const safeUser=u=>({id:u.id,name:u.name,registered:!!(u.password_hash||u.providers?.length),hasPassword:!!u.password_hash,providers:u.providers||[],clanId:u.clan_id,code:u.code});
 export async function createApp(config={}){
  const port=Number(config.port??process.env.PORT??8080),dataDir=config.dataDir||process.env.DATA_DIR||path.resolve(here,'../data');await mkdir(dataDir,{recursive:true});
  const db=new DatabaseSync(path.join(dataDir,'emberfall.sqlite'));db.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;');
@@ -33,11 +34,12 @@ export async function createApp(config={}){
  CREATE TABLE IF NOT EXISTS clans(id TEXT PRIMARY KEY,name TEXT UNIQUE NOT NULL,owner_id TEXT NOT NULL REFERENCES players(id),created_at INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS chat(id INTEGER PRIMARY KEY AUTOINCREMENT,clan_id TEXT NOT NULL,player_id TEXT NOT NULL,message TEXT NOT NULL,created_at INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS raid_log(id TEXT PRIMARY KEY,attacker_id TEXT NOT NULL,defender_id TEXT,result TEXT NOT NULL,created_at INTEGER NOT NULL);`);
+ const social=createSocial({db,fail});
  const settings={origin:(config.origin||process.env.PUBLIC_URL||'').replace(/\/$/,''),stripeKey:config.stripeKey??process.env.STRIPE_SECRET_KEY??'',webhookSecret:config.webhookSecret??process.env.STRIPE_WEBHOOK_SECRET??'',secure:config.secure??(process.env.COOKIE_SECURE==='true'),fetcher:config.fetcher||fetch};
  if(process.env.NODE_ENV==='production'&&(!settings.origin.startsWith('https://')||!settings.secure))throw new Error('Production requires PUBLIC_URL=https://your-domain and COOKIE_SECURE=true.');
  const paymentEnabled=!!(settings.stripeKey&&settings.webhookSecret&&settings.origin.startsWith('https://'));
  const rate=new Map();const tx=fn=>{db.exec('BEGIN IMMEDIATE');try{const r=fn();db.exec('COMMIT');return r;}catch(e){db.exec('ROLLBACK');throw e;}};
- const getUser=id=>{const u=db.prepare('SELECT * FROM players WHERE id=?').get(id);if(u)u.providers=db.prepare('SELECT provider FROM auth_identities WHERE player_id=? ORDER BY provider').all(id).map(r=>r.provider);return u;};
+ const getUser=id=>{const u=db.prepare('SELECT * FROM players WHERE id=?').get(id);if(u)u.code=social.code(u.id);if(u)u.providers=db.prepare('SELECT provider FROM auth_identities WHERE player_id=? ORDER BY provider').all(id).map(r=>r.provider);return u;};
  function stateOf(u,now=Date.now()){u=getUser(u.id)||u;const s=JSON.parse(u.state);M.advance(s,now);return s;}
  function persist(u,s,now=Date.now()){db.prepare('UPDATE players SET state=?,glory=?,updated_at=? WHERE id=?').run(JSON.stringify(s),s.glory,now,u.id);}
  const oauth=createOAuth({db,settings,config:config.oauth,tx,getUser,newSession,snapshot});
@@ -103,10 +105,10 @@ export async function createApp(config={}){
     if(/^\/api\/auth\/oauth\/(google|facebook)\/callback$/.test(p)&&req.method==='GET'){const ok=await oauth.callback(p.split('/')[4],url.searchParams);res.writeHead(ok?200:400,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','Referrer-Policy':'no-referrer'});return res.end(callbackHTML(ok));}
     if(p==='/api/session'&&req.method==='POST'){
      await jsonBody(req);
-     let session=sessionOf(req);if(!session){const id=randomUUID(),s=M.initialState(now);db.prepare('INSERT INTO players(id,name,state,updated_at) VALUES(?,?,?,?)').run(id,'Chief '+randomInt(1000,9999),JSON.stringify(s),now);session=newSession(id,res);}return json(res,200,{...tx(()=>snapshot(getUser(session.player_id),now)),csrf:session.csrf});
+     let session=sessionOf(req);if(!session){const id=randomUUID(),s=M.initialState(now);db.prepare('INSERT INTO players(id,name,state,updated_at) VALUES(?,?,?,?)').run(id,'Chief '+randomInt(1000,9999),JSON.stringify(s),now);db.prepare('UPDATE players SET name=? WHERE id=?').run(social.code(id),id);session=newSession(id,res);}return json(res,200,{...tx(()=>snapshot(getUser(session.player_id),now)),csrf:session.csrf});
     }
     if(p==='/api/auth/login'&&req.method==='POST'){
-     const a=await jsonBody(req);if(typeof a.username!=='string'||typeof a.password!=='string'||a.password.length>256)fail('Invalid credentials.',401);const user=db.prepare('SELECT * FROM players WHERE login=?').get(a.username.toLowerCase());if(!user?.password_hash||!await passwordMatches(a.password,user.password_hash)||getUser(user.id)?.password_hash!==user.password_hash)fail('Invalid username or password.',401);
+     const a=await jsonBody(req);if(typeof a.username!=='string'||typeof a.password!=='string'||a.password.length>256)fail('Invalid credentials.',401);const user=db.prepare('SELECT p.* FROM players p LEFT JOIN player_codes c ON c.player_id=p.id WHERE p.login=? OR c.code=?').get(a.username.toLowerCase(),a.username.toUpperCase());if(!user?.password_hash||!await passwordMatches(a.password,user.password_hash)||getUser(user.id)?.password_hash!==user.password_hash)fail('Invalid username or password.',401);
      const upgraded=user.password_hash.startsWith('scrypt$')?null:await passwordHash(a.password);const response=tx(()=>{if(getUser(user.id)?.password_hash!==user.password_hash)fail('Invalid username or password.',401);const old=sessionOf(req);if(old)db.prepare('DELETE FROM sessions WHERE token_hash=?').run(old.token_hash);if(upgraded)db.prepare('UPDATE players SET password_hash=? WHERE id=?').run(upgraded,user.id);const fresh=newSession(user.id,res);return {...snapshot(getUser(user.id),now),csrf:fresh.csrf};});return json(res,200,response);
     }
     const {user,session}=authenticate(req);
@@ -126,14 +128,16 @@ export async function createApp(config={}){
      const row=db.prepare('SELECT * FROM battles WHERE id=? AND player_id=?').get(url.searchParams.get('id'),user.id);if(!row)fail('Battle not found.',404);return json(res,200,tx(()=>{const s=stateOf(user,now),b=advanceBattle(row,user,s,now);persist(user,s,now);return {battle:b,battleId:b.id,state:s,serverTime:now};}));
     }
     if(p==='/api/frontiers'&&req.method==='GET')return json(res,200,tx(()=>frontiers.read(user,now)));
+    if(p==='/api/social'&&req.method==='GET')return json(res,200,social.read(user,new URL(req.url,'http://localhost').searchParams.get('q')||''));
+    if(p==='/api/social'&&req.method==='POST'){const a=await jsonBody(req);return json(res,200,tx(()=>social.action(getUser(user.id),a)));}
     if(p==='/api/players'&&req.method==='GET')return json(res,200,{players:db.prepare('SELECT id,name,glory,clan_id,state FROM players WHERE id<>? ORDER BY glory DESC LIMIT 40').all(user.id).map(u=>{const s=JSON.parse(u.state);return {id:u.id,name:u.name,glory:u.glory,hall:M.hallLevel(s),shield:s.shieldUntil>now,clanId:u.clan_id};})});
     if(p==='/api/raids'&&req.method==='GET')return json(res,200,{raids:raids.history(user)});
     if(p==='/api/clans'&&req.method==='GET'){
-     const clans=db.prepare('SELECT c.id,c.name,COUNT(p.id) AS members,COALESCE(SUM(p.glory),0) AS glory FROM clans c LEFT JOIN players p ON p.clan_id=c.id GROUP BY c.id ORDER BY glory DESC LIMIT 40').all();const members=user.clan_id?db.prepare('SELECT id,name,glory FROM players WHERE clan_id=?').all(user.clan_id):[];const messages=user.clan_id?db.prepare('SELECT c.message,c.created_at,p.name FROM chat c JOIN players p ON p.id=c.player_id WHERE c.clan_id=? ORDER BY c.id DESC LIMIT 30').all(user.clan_id).reverse():[];return json(res,200,{clans,members,messages,clanId:user.clan_id});
+     const clans=db.prepare('SELECT c.id,c.name,COUNT(p.id) AS members,COALESCE(SUM(p.glory),0) AS glory FROM clans c LEFT JOIN players p ON p.clan_id=c.id GROUP BY c.id ORDER BY glory DESC LIMIT 40').all().map(c=>({...c,code:social.clanCode(c.id)}));const members=user.clan_id?db.prepare('SELECT id,name,glory FROM players WHERE clan_id=?').all(user.clan_id):[];const messages=user.clan_id?db.prepare('SELECT c.message,c.created_at,p.name FROM chat c JOIN players p ON p.id=c.player_id WHERE c.clan_id=? ORDER BY c.id DESC LIMIT 30').all(user.clan_id).reverse():[];return json(res,200,{clans,members,messages,clanId:user.clan_id});
     }
     if(p==='/api/clans'&&req.method==='POST'){
      const a=await jsonBody(req);const result=tx(()=>{
-      Object.assign(user,getUser(user.id));if(a.action==='create'){if(user.clan_id)fail('Leave your current clan first.');if(typeof a.name!=='string'||a.name.trim().length<3||a.name.trim().length>24)fail('Clan names must be 3–24 characters.');if(db.prepare('SELECT id FROM clans WHERE name=?').get(a.name.trim()))fail('That clan name is taken.');const id=randomUUID();db.prepare('INSERT INTO clans VALUES(?,?,?,?)').run(id,a.name.trim(),user.id,now);db.prepare('UPDATE players SET clan_id=? WHERE id=?').run(id,user.id);}
+      Object.assign(user,getUser(user.id));if(a.action==='create'){if(user.clan_id)fail('Leave your current clan first.');if(typeof a.name!=='string'||a.name.trim().length<3||a.name.trim().length>24)fail('Clan names must be 3–24 characters.');if(db.prepare('SELECT id FROM clans WHERE name=?').get(a.name.trim()))fail('That clan name is taken.');const id=randomUUID();db.prepare('INSERT INTO clans VALUES(?,?,?,?)').run(id,a.name.trim(),user.id,now);social.clanCode(id);db.prepare('UPDATE players SET clan_id=? WHERE id=?').run(id,user.id);}
       else if(a.action==='join'){if(user.clan_id)fail('Leave your current clan first.');if(!db.prepare('SELECT id FROM clans WHERE id=?').get(a.id))fail('Clan not found.');if(db.prepare('SELECT COUNT(*) AS n FROM players WHERE clan_id=?').get(a.id).n>=30)fail('Clan is full.');db.prepare('UPDATE players SET clan_id=? WHERE id=?').run(a.id,user.id);}
       else if(a.action==='leave'){if(user.clan_id)frontiers.canLeave(user,now);db.prepare('UPDATE players SET clan_id=NULL WHERE id=?').run(user.id);const left=db.prepare('SELECT id FROM players WHERE clan_id=? LIMIT 1').get(user.clan_id);if(left)db.prepare('UPDATE clans SET owner_id=? WHERE id=? AND owner_id=?').run(left.id,user.clan_id,user.id);else{db.prepare('DELETE FROM clans WHERE id=?').run(user.clan_id);db.prepare('DELETE FROM chat WHERE clan_id=?').run(user.clan_id);}}
       else if(a.action==='chat'){if(!user.clan_id)fail('Join a clan first.');if(typeof a.message!=='string'||a.message.trim().length<1||a.message.length>280)fail('Messages must be 1–280 characters.');db.prepare('INSERT INTO chat(clan_id,player_id,message,created_at) VALUES(?,?,?,?)').run(user.clan_id,user.id,a.message.trim(),now);}

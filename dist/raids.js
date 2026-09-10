@@ -1,5 +1,5 @@
-import {unlockedLand} from './content.js?v=13.0.0';
-import * as M from './model.js?v=13.0.0';
+import {unlockedLand} from './content.js?v=14.0.0';
+import * as M from './model.js?v=14.0.0';
 
 export const WEEK = 7 * 86400000;
 export const DEFENSE_INTERVAL = 6 * 3600000;
@@ -49,7 +49,7 @@ export function appearance(level=1) {
   return {level,tier,name:['Bronze','Silver','Gold','Crystal','Royal'][tier],color:[0xc79258,0xbbd5df,0xf4cc76,0x94dbea,0xd5a8f7][tier],marks:1+(level-1)%10};
 }
 export function botVillage(player,random=Math.random,now=Date.now()) {
-  const level=Math.max(1,Math.min(15,M.hallLevel(player)+pick([-1,0,0,0,1],random)));
+  const level=Math.max(1,Math.min(15,((player.glory||0)>=1000?Math.floor(player.glory/300)+1:M.hallLevel(player))+pick([-1,0,0,0,1],random)));
   const s=M.initialState(now);s.obstacles=[];s.queue=[];
   for(const b of s.buildings){b.level=Math.max(1,level-(b.type==='hall'?0:Math.floor(random()*2)));delete b.finishAt;b.constructing=false;b.stored=0;}
   const additions=[['tower',2],['cannon',2],['storage',3],['mortar',3],['wizard',4],['tesla',5],['air',6],['inferno',8]];
@@ -62,14 +62,26 @@ export function botVillage(player,random=Math.random,now=Date.now()) {
   const turn=pick([0,1,2,3],random);
   for(const b of s.buildings)for(let n=0;n<turn;n++){const x=b.x;b.x=-b.z;b.z=x;b.rotation=((b.rotation||0)+1)%4;}
   const cap=M.capacity(s);s.gold=Math.floor(cap*(.35+random()*.6));s.elixir=Math.floor(cap*(.35+random()*.6));s.dark=level<3?0:Math.floor(level*level*120*(.4+random()*.6));
+  s.glory=(player.glory||0)>=1000?Math.max(1000,Math.round(player.glory+(random()-.5)*300)):Math.min(999,player.glory||0);
   return {id:'bot-'+now+'-'+Math.floor(random()*1000000),name:pick(botNames,random),kind:'bot',hall:level,state:s};
+}
+export function matchDistance(a,b){return (a.glory||0)>=1000?Math.abs((a.glory||0)-(b.glory||0)):Math.abs(M.hallLevel(a)-M.hallLevel(b));}
+export function matchAllowed(a,b){return (a.glory||0)>=1000?(b.glory||0)>=1000&&matchDistance(a,b)<=Math.max(200,(a.glory||0)*.15):(b.glory||0)<1000&&matchDistance(a,b)<=2;}
+export function assignLoot(b){
+ b.lootVersion=14;for(const x of b.buildings)x.loot={gold:0,elixir:0,dark:0};
+ for(const key of currencies){const producer={gold:'mine',elixir:'well',dark:'drill'}[key],groups=[['hall',.2],['storage',.7],[producer,.1]].map(([type,weight])=>({items:b.buildings.filter(x=>x.type===type),weight})).filter(g=>g.items.length);const total=groups.reduce((n,g)=>n+g.weight,0);let left=b.enemy[key]||0;const targets=groups.flatMap(g=>g.items.map(x=>({x,weight:g.weight/g.items.length/total})));
+ targets.forEach(({x,weight},i)=>{const amount=i===targets.length-1?left:Math.floor((b.enemy[key]||0)*weight);x.loot[key]=amount;left-=amount;});}
+}
+export function earnedLoot(b){
+ if(b.lootVersion!==14){const ratio=(b.stats?.percent||0)/100;return Object.fromEntries(currencies.map(k=>[k,Math.floor((b.enemy[k]||0)*ratio)]));}
+ return Object.fromEntries(currencies.map(k=>[k,Math.min(b.enemy[k]||0,Math.floor(b.buildings.reduce((n,x)=>n+(x.loot?.[k]||0)*Math.max(0,Math.min(1,1-x.hp/x.maxHp)),0)))]));
 }
 export function configureBattle(b,defender) {
   const ds=defender.state;b.land=unlockedLand(ds);b.flags=ds.flags||[];b.bannerCode=ds.bannerCode||ds.flags?.[0]?.code;b.pvp=true;b.raid=true;b.bounds=15.2;
   b.enemy={index:0,name:defender.name,kind:defender.kind||'player',hall:M.hallLevel(ds),...availableLoot(ds),glory:30};
   b.defenderId=defender.id;b.defenderBalance=Object.fromEntries(currencies.map(k=>[k,ds[k]||0]));
   b.buildings=ds.buildings.filter(x=>!x.constructing).map(x=>({...x,hp:M.buildingHp(x),maxHp:M.buildingHp(x),cooldown:0}));
-  return b;
+  assignLoot(b);return b;
 }
 export function createBotBattle(s,random=Math.random,now=Date.now()) {
   const b=configureBattle(M.createBattle(s,0),botVillage(s,random,now));

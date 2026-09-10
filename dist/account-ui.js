@@ -1,5 +1,5 @@
-import {escapeHtml as e} from './features.js?v=13.0.0';
-import {nativeApp, openExternal} from './native.js?v=13.0.0';
+import {escapeHtml as e} from './features.js?v=14.0.0';
+import {nativeApp, openExternal} from './native.js?v=14.0.0';
 const names = {google:'Google', facebook:'Facebook'};
 export class AccountUI {
   constructor(features) {
@@ -16,8 +16,8 @@ export class AccountUI {
   show(switchAccount = false) {
     const u = this.api.user, mode = u?.registered && !switchAccount ? 'link' : 'signin';
     const connected = u?.providers || [];
-    const password = `<form id="account-form" class="account-form"><label>Username<input id="account-name" autocomplete="username" minlength="3" maxlength="24" placeholder="Your chief name"></label><label>Password<input id="account-password" type="password" autocomplete="${switchAccount?'current-password':'new-password'}" minlength="10" maxlength="128" placeholder="At least 10 characters"></label><div class="panel-actions">${!u?.registered?'<button class="btn btn-gold" data-v2="register">Save this village</button>':''}<button class="btn" data-v2="login">Sign in</button></div></form>`;
-    let body = `<div class="account-profile"><span class="auth-emblem">E</span><div><small>${u?.registered?'VILLAGE ACCOUNT':'YOUR NEXT CHAPTER'}</small><h3>${u?.registered?e(u.name):'Keep your kingdom.'}</h3><p>${u?.registered?'Your village follows you across devices.':'Save your progress and return from any device.'}</p></div></div>`;
+    const password = `<form id="account-form" class="account-form"><label>${switchAccount?'Username or Player ID':'Account name'}<input id="account-name" autocomplete="username" minlength="3" maxlength="24" placeholder="Your chief name"></label><label>Password<input id="account-password" type="password" autocomplete="${switchAccount?'current-password':'new-password'}" minlength="10" maxlength="128" placeholder="At least 10 characters"></label><div class="panel-actions">${!u?.registered?'<button class="btn btn-gold" data-v2="register">Save this village</button>':''}<button class="btn" data-v2="login">Sign in</button></div></form>`;
+    let body = `<div class="account-profile"><span class="auth-emblem">E</span><div><small>${u?.registered?'VILLAGE ACCOUNT':'YOUR NEXT CHAPTER'}</small><h3>${u?.registered?e(u.name):'Keep your kingdom.'}</h3><strong class="profile-code">${e(u?.code||'')}</strong><p>${u?.registered?'Your village follows you across devices.':'Save your progress and return from any device.'}</p></div></div>`;
     if(!this.api.online) body += '<p class="account-notice">You are playing on this device. Connect to your kingdom server to sign in and play with others.</p>';
     else if(this.active) body += this.waiting();
     else {

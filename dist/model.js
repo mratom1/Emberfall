@@ -1,8 +1,8 @@
-import {COUNTRY_CODES,FLAG_COST} from './flags.js?v=13.0.0';
-import {EXTRA_HEROES,unlockedLand,landContains} from './content.js?v=13.0.0';
-import * as R from './raids.js?v=13.0.0';
-import * as Q from './quality.js?v=13.0.0';
-import * as X from './expansion.js?v=13.0.0';
+import {COUNTRY_CODES,FLAG_COST} from './flags.js?v=14.0.0';
+import {EXTRA_HEROES,unlockedLand,landContains} from './content.js?v=14.0.0';
+import * as R from './raids.js?v=14.0.0';
+import * as Q from './quality.js?v=14.0.0';
+import * as X from './expansion.js?v=14.0.0';
 export const SAVE_KEY = 'emberfall.kingdom.v1';
 export const TYPES = {
   hall: {name:'Town Hall',icon:'castle',desc:'The heart of your village. Upgrade to unlock stronger buildings and a larger army.',gold:0,elixir:0,size:3.7,hp:1600,max:1,time:30},
@@ -167,7 +167,7 @@ export function queueSize(s){return s.queue.reduce((n,q)=>n+TROOPS[q.type].space
 export function hallLevel(s){return s.buildings.find(b=>b.type==='hall')?.level||1;}
 export function troopLevel(s){return Math.max(1,...s.buildings.filter(b=>b.type==='barracks'&&!b.constructing).map(b=>b.level));}
 export function freeBuilders(s){return (s.builders||2)-s.buildings.filter(b=>b.finishAt&&b.type!=='wall').length-(s.obstacles||[]).filter(o=>o.finishAt).length;}
-export function producerRate(b){return b.type==='mine'?1.7*b.level:b.type==='well'?1.35*b.level:b.type==='drill'?.12*b.level:0;}
+export function producerRate(b){return b.type==='mine'?.17*b.level:b.type==='well'?.135*b.level:b.type==='drill'?.012*b.level:0;}
 export function productionCapacity(b){return b.level*600;}
 export function upgradeCost(b){if(b.type==='wall')return {gold:Math.round(TYPES.wall.gold*Math.pow(1.7,b.level)),elixir:0,time:0};return {gold:Math.round((TYPES[b.type].gold||850)*Math.pow(1.7,b.level)),elixir:b.type==='hall'?500*b.level:Math.round((TYPES[b.type].elixir||50)*Math.pow(1.6,b.level)),time:(b.type==='hall'?30:15)*b.level};}
 export function canPlace(s,type,x,z,ignoreId){
@@ -309,10 +309,10 @@ export function stepBattle(battle,dt,onEvent=()=>{}){
 export function settleBattle(s,battle){
   const root=s;s=X.wallet(s,battle);
   if(battle.settled)return battle.result;if(battle.practice){battle.ended=true;battle.settled=true;battle.stats=battleStats(battle);return battle.result={gold:0,elixir:0,dark:0,glory:0,...battle.stats,won:battle.stats.stars>0,practice:true};}battle.ended=true;battle.settled=true;battle.stats=battleStats(battle);
-  const ratio=battle.stats.percent/100;const gold=Math.min(Math.max(0,capacity(s)-s.gold),Math.floor(battle.enemy.gold*ratio)),elixir=Math.min(Math.max(0,capacity(s)-s.elixir),Math.floor(battle.enemy.elixir*ratio)),glory=battle.stats.stars?Math.floor(battle.enemy.glory*battle.stats.stars/3):0;
+  const ratio=battle.stats.percent/100,earned=R.earnedLoot(battle);const gold=Math.min(Math.max(0,capacity(s)-s.gold),earned.gold),elixir=Math.min(Math.max(0,capacity(s)-s.elixir),earned.elixir),glory=battle.stats.stars?Math.floor(battle.enemy.glory*battle.stats.stars/3):0;
   s.gold+=gold;s.elixir+=elixir;s.glory+=glory;
   if(battle.stats.stars){s.stats.wins++;if(!battle.pvp&&!battle.special)s.cleared[battle.enemy.index]=Math.max(s.cleared[battle.enemy.index]||0,battle.stats.stars);}
-  const dark=battle.raid?Math.floor((battle.enemy.dark||0)*ratio):battle.stats.stars?Math.floor((battle.enemy.dark??30)*ratio):0;s.dark=(s.dark||0)+dark;for(const u of battle.units.filter(u=>u.hero)){const h=s.heroes[u.type];if(h)h.recoverAt=Date.now()+30000;}
+  const dark=battle.raid?earned.dark:battle.stats.stars?Math.floor((battle.enemy.dark??30)*ratio):0;s.dark=(s.dark||0)+dark;for(const u of battle.units.filter(u=>u.hero)){const h=s.heroes[u.type];if(h)h.recoverAt=Date.now()+30000;}
   battle.result={gold,elixir,dark,glory,...battle.stats,won:battle.stats.stars>0};X.reward(root,battle,battle.result);R.recordAttack(root,battle,battle.result);return battle.result;
 }
 

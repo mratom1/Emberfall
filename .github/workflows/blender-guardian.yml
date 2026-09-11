@@ -36,7 +36,7 @@ jobs:
           fi
           .blender/blender-5.0.0-linux-x64/blender --version
 
-      - name: Generate Guardian levels 1, 5 and 10
+      - name: Generate Guardian levels 1 through 15
         shell: bash
         run: |
           set -euxo pipefail
@@ -49,19 +49,30 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          test -s assets/characters/troops/guardian/source/guardian_l1.blend
-          test -s assets/characters/troops/guardian/source/guardian_l5.blend
-          test -s assets/characters/troops/guardian/source/guardian_l10.blend
-          test -s assets/characters/troops/guardian/exports/guardian_l1.glb
-          test -s assets/characters/troops/guardian/exports/guardian_l5.glb
-          test -s assets/characters/troops/guardian/exports/guardian_l10.glb
+          for level in $(seq 1 15); do
+            test -s "assets/characters/troops/guardian/source/guardian_l${level}.blend"
+            test -s "assets/characters/troops/guardian/exports/guardian_l${level}.glb"
+          done
           test -s assets/characters/troops/guardian/manifest.json
-          cat assets/characters/troops/guardian/manifest.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path('assets/characters/troops/guardian/manifest.json')
+          data = json.loads(p.read_text())
+          assert data['level_count'] == 15
+          assert len(data['levels']) == 15
+          changes = [x['visual_change'] for x in data['levels']]
+          assert len(set(changes)) == 15
+          for i, entry in enumerate(data['levels'], 1):
+              assert entry['level'] == i
+              assert entry['triangles'] > 0
+          print(json.dumps(data, indent=2))
+          PY
 
       - name: Upload Guardian artifact
         uses: actions/upload-artifact@v4
         with:
-          name: guardian-blender-pilot
+          name: guardian-blender-levels-1-15
           path: assets/characters/troops/guardian/
           if-no-files-found: error
           retention-days: 14
@@ -76,6 +87,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "Generated assets are already up to date."
           else
-            git commit -m "Generate Guardian Blender pilot assets [skip ci]"
+            git commit -m "Generate Guardian levels 1-15 [skip ci]"
             git push origin "HEAD:${GITHUB_REF_NAME}"
           fi

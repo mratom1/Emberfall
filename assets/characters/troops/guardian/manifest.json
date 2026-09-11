@@ -1,0 +1,29 @@
+{
+  "troop": "guardian",
+  "displayName": "Guardian",
+  "concept": "Emberfall Gatewarden \u2014 an original broad-silhouette frontline swordsman built around a tapered shield, layered plate, and ember-forged crest.",
+  "blender": "5.0.0",
+  "levels": [
+    {
+      "level": 1,
+      "triangles": 768,
+      "blend": "assets/characters/troops/guardian/source/guardian_l1.blend",
+      "glb": "assets/characters/troops/guardian/exports/guardian_l1.glb",
+      "geometry": "base cuirass, compact sword, tapered guardian shield"
+    },
+    {
+      "level": 5,
+      "triangles": 988,
+      "blend": "assets/characters/troops/guardian/source/guardian_l5.blend",
+      "glb": "assets/characters/troops/guardian/exports/guardian_l5.glb",
+      "geometry": "layered pauldrons, waist plates, longer sword, reinforced shield"
+    },
+    {
+      "level": 10,
+      "triangles": 1208,
+      "blend": "assets/characters/troops/guardian/source/guardian_l10.blend",
+      "glb": "assets/characters/troops/guardian/exports/guardian_l10.glb",
+      "geometry": "dark plate mantle, knee guards, ember crest/core, largest sword and shield"
+    }
+  ]
+}

@@ -83,7 +83,8 @@ jobs:
 
       - name: Build L1 review sheet
         run: |
-          magick montage \
+          set -euxo pipefail
+          montage \
             generated/guardian-l1-v6/guardian-l1-front.png \
             generated/guardian-l1-v6/guardian-l1-threequarter.png \
             generated/guardian-l1-v6/guardian-l1-side.png \

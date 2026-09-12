@@ -1,0 +1,170 @@
+name: Build Blender characters
+
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: What to generate
+        required: true
+        type: choice
+        default: single
+        options:
+          - single
+          - all-troops
+          - all-heroes
+          - all
+      kind:
+        description: Used when scope=single
+        required: true
+        type: choice
+        default: troop
+        options:
+          - troop
+          - hero
+      unit:
+        description: Unit id when scope=single, e.g. guardian, ranger, king, queen
+        required: true
+        default: guardian
+        type: string
+      levels:
+        description: Level list/range. Troops support 1-15; heroes 1-50.
+        required: true
+        default: 1-15
+        type: string
+      preview_size:
+        description: PNG preview resolution
+        required: true
+        type: choice
+        default: '512'
+        options:
+          - '320'
+          - '512'
+          - '768'
+      save_blend:
+        description: Include editable .blend files in the Actions artifact
+        required: true
+        default: true
+        type: boolean
+      commit_assets:
+        description: Commit generated GLB/PNG/metadata to dist/assets/characters-blender
+        required: true
+        default: false
+        type: boolean
+  push:
+    branches: [main]
+    paths:
+      - 'art/blender/**'
+      - 'tools/blender/**'
+      - '.github/workflows/blender-characters.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: blender-characters-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  blender:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate generator source
+        run: |
+          python3 -m py_compile tools/blender/generate_unit.py tools/blender/run_generator.py
+          python3 -m json.tool art/blender/unit_specs.json >/dev/null
+
+      - name: Install Blender
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends blender
+          blender --version
+
+      - name: Smoke-generate representative assets on push
+        if: github.event_name == 'push'
+        run: |
+          set -euxo pipefail
+          blender -b --python tools/blender/run_generator.py -- \
+            --kind troop --unit guardian --levels 1,5,10,15 \
+            --output generated/blender --preview-size 320
+          blender -b --python tools/blender/run_generator.py -- \
+            --kind hero --unit king --levels 1,10,25,50 \
+            --output generated/blender --preview-size 320
+
+      - name: Generate selected character assets
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          SCOPE: ${{ inputs.scope }}
+          KIND: ${{ inputs.kind }}
+          UNIT: ${{ inputs.unit }}
+          LEVELS: ${{ inputs.levels }}
+          PREVIEW_SIZE: ${{ inputs.preview_size }}
+          SAVE_BLEND: ${{ inputs.save_blend }}
+        run: |
+          set -euxo pipefail
+          extra=()
+          if [[ "$SAVE_BLEND" == "true" ]]; then extra+=(--save-blend); fi
+          case "$SCOPE" in
+            single)
+              blender -b --python tools/blender/run_generator.py -- \
+                --kind "$KIND" --unit "$UNIT" --levels "$LEVELS" \
+                --output generated/blender --preview-size "$PREVIEW_SIZE" "${extra[@]}"
+              ;;
+            all-troops)
+              blender -b --python tools/blender/run_generator.py -- \
+                --all-troops --levels "$LEVELS" \
+                --output generated/blender --preview-size "$PREVIEW_SIZE" "${extra[@]}"
+              ;;
+            all-heroes)
+              blender -b --python tools/blender/run_generator.py -- \
+                --all-heroes --levels "$LEVELS" \
+                --output generated/blender --preview-size "$PREVIEW_SIZE" "${extra[@]}"
+              ;;
+            all)
+              blender -b --python tools/blender/run_generator.py -- \
+                --all --levels "$LEVELS" \
+                --output generated/blender --preview-size "$PREVIEW_SIZE" "${extra[@]}"
+              ;;
+          esac
+
+      - name: Verify generated outputs
+        run: |
+          test -f generated/blender/manifest.json
+          count=$(find generated/blender -name '*.glb' | wc -l)
+          previews=$(find generated/blender -name '*.png' | wc -l)
+          echo "GLB files: $count"
+          echo "Preview files: $previews"
+          test "$count" -gt 0
+          test "$previews" -eq "$count"
+
+      - name: Upload editable Blender output
+        uses: actions/upload-artifact@v4
+        with:
+          name: emberfall-blender-${{ github.run_number }}
+          path: generated/blender/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 6
+
+      - name: Copy publishable assets into game tree
+        if: github.event_name == 'workflow_dispatch' && inputs.commit_assets
+        run: |
+          mkdir -p dist/assets/characters-blender
+          rsync -a --delete --exclude='*.blend' generated/blender/ dist/assets/characters-blender/
+
+      - name: Commit generated GLB and previews
+        if: github.event_name == 'workflow_dispatch' && inputs.commit_assets
+        run: |
+          if git diff --quiet -- dist/assets/characters-blender; then
+            echo 'No generated asset changes to commit.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add dist/assets/characters-blender
+          git commit -m "Generate Blender character assets"
+          git push

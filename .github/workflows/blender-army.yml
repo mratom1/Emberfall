@@ -1,15 +1,10 @@
-name: Build Blender Army - Guardian L1-L15
+name: Build Blender Guardian L1-L15
 
 on:
   workflow_dispatch:
     inputs:
-      unit:
-        description: Single troop id to generate
-        required: true
-        default: guardian
-        type: string
       levels:
-        description: Level range/list
+        description: Guardian level range/list
         required: true
         default: 1-15
         type: string
@@ -27,8 +22,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'tools/blender/generate_army_v4.py'
-      - 'tools/blender/run_army_v4.py'
+      - 'tools/blender/generate_guardian_v1.py'
+      - 'tools/blender/generate_army_v3.py'
       - 'art/blender/unit_specs.json'
       - '.github/workflows/blender-army.yml'
 
@@ -36,8 +31,7 @@ permissions:
   contents: read
 
 jobs:
-  guardian-full:
-    if: github.event_name == 'push'
+  guardian-levels-01-15:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     env:
@@ -45,9 +39,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate Guardian generator
+      - name: Validate dedicated Guardian source
         run: |
-          python3 -m py_compile tools/blender/generate_army_v4.py tools/blender/run_army_v4.py
+          python3 -m py_compile tools/blender/generate_guardian_v1.py tools/blender/generate_army_v3.py
           python3 -m json.tool art/blender/unit_specs.json >/dev/null
 
       - name: Install Blender headless dependencies
@@ -56,65 +50,54 @@ jobs:
           sudo apt-get install -y --no-install-recommends blender python3-numpy xvfb libegl1 libgl1 libgl1-mesa-dri libglx-mesa0
           xvfb-run -a blender -b --python-exit-code 1 --python-expr "import bpy; print('Blender ready:', bpy.app.version_string)"
 
-      - name: Generate Guardian Level 1 through 15
-        run: |
-          set -euxo pipefail
-          xvfb-run -a blender -b --python-exit-code 1 --python tools/blender/run_army_v4.py -- \
-            --unit guardian --levels 1-15 \
-            --output generated/army-v4 --preview-size 512 --save-blend
-
-      - name: Verify all 15 Guardian levels
-        run: |
-          set -euxo pipefail
-          test $(find generated/army-v4 -name '*.glb' | wc -l) -eq 15
-          test $(find generated/army-v4 -name '*.png' | wc -l) -eq 15
-          test $(find generated/army-v4 -name '*.blend' | wc -l) -eq 15
-          test $(find generated/army-v4 -name 'metadata.json' | wc -l) -eq 15
-          test -f generated/army-v4/manifest.json
-
-      - name: Upload Guardian L1-L15 Blender artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: guardian-v4-levels-01-15-${{ github.run_number }}
-          path: generated/army-v4/
-          retention-days: 14
-          if-no-files-found: error
-          compression-level: 6
-
-  single-manual:
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 180
-    env:
-      LIBGL_ALWAYS_SOFTWARE: '1'
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install and validate
-        run: |
-          python3 -m py_compile tools/blender/generate_army_v4.py tools/blender/run_army_v4.py
-          python3 -m json.tool art/blender/unit_specs.json >/dev/null
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends blender python3-numpy xvfb libegl1 libgl1 libgl1-mesa-dri libglx-mesa0
-      - name: Generate selected single troop
+      - name: Generate detailed Guardian levels
+        shell: bash
         env:
-          UNIT: ${{ inputs.unit }}
-          LEVELS: ${{ inputs.levels }}
-          SIZE: ${{ inputs.preview_size }}
-          SAVE_BLEND: ${{ inputs.save_blend }}
+          REQUESTED_LEVELS: ${{ github.event_name == 'workflow_dispatch' && inputs.levels || '1-15' }}
+          REQUESTED_SIZE: ${{ github.event_name == 'workflow_dispatch' && inputs.preview_size || '512' }}
+          REQUESTED_BLEND: ${{ github.event_name == 'workflow_dispatch' && inputs.save_blend || 'true' }}
         run: |
           set -euxo pipefail
           extra=()
-          [[ "$SAVE_BLEND" == "true" ]] && extra+=(--save-blend)
-          xvfb-run -a blender -b --python-exit-code 1 --python tools/blender/run_army_v4.py -- \
-            --unit "$UNIT" --levels "$LEVELS" --output generated/army-v4 --preview-size "$SIZE" "${extra[@]}"
-      - name: Verify requested levels
+          [[ "$REQUESTED_BLEND" == "true" ]] && extra+=(--save-blend)
+          xvfb-run -a blender -b --python-exit-code 1 --python tools/blender/generate_guardian_v1.py -- \
+            --levels "$REQUESTED_LEVELS" \
+            --output generated/guardian-v1 \
+            --preview-size "$REQUESTED_SIZE" "${extra[@]}"
+
+      - name: Verify Guardian output
+        shell: bash
+        env:
+          REQUESTED_LEVELS: ${{ github.event_name == 'workflow_dispatch' && inputs.levels || '1-15' }}
+          REQUESTED_BLEND: ${{ github.event_name == 'workflow_dispatch' && inputs.save_blend || 'true' }}
         run: |
-          test -f generated/army-v4/manifest.json
-          test $(find generated/army-v4 -name '*.glb' | wc -l) -gt 0
-          test $(find generated/army-v4 -name '*.png' | wc -l) -gt 0
-      - uses: actions/upload-artifact@v4
+          set -euxo pipefail
+          expected=$(python3 - <<'PY'
+          import os
+          text=os.environ['REQUESTED_LEVELS']
+          vals=set()
+          for c in text.split(','):
+              c=c.strip()
+              if not c: continue
+              if '-' in c:
+                  a,b=map(int,c.split('-',1)); vals.update(range(min(a,b),max(a,b)+1))
+              else: vals.add(int(c))
+          print(len([x for x in vals if 1 <= x <= 15]))
+          PY
+          )
+          test $(find generated/guardian-v1 -name '*.glb' | wc -l) -eq "$expected"
+          test $(find generated/guardian-v1 -name '*.png' | wc -l) -eq "$expected"
+          test $(find generated/guardian-v1 -name 'metadata.json' | wc -l) -eq "$expected"
+          if [[ "$REQUESTED_BLEND" == "true" ]]; then
+            test $(find generated/guardian-v1 -name '*.blend' | wc -l) -eq "$expected"
+          fi
+          test -f generated/guardian-v1/manifest.json
+
+      - name: Upload Guardian Blender artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: army-v4-${{ inputs.unit }}-${{ github.run_number }}
-          path: generated/army-v4/
+          name: guardian-detailed-l01-l15-${{ github.run_number }}
+          path: generated/guardian-v1/
           retention-days: 14
           if-no-files-found: error
+          compression-level: 6

@@ -22,6 +22,7 @@ on:
   push:
     branches: [main]
     paths:
+      - 'tools/blender/generate_guardian_v5.py'
       - 'tools/blender/generate_guardian_v4.py'
       - 'tools/blender/generate_guardian_v3.py'
       - 'tools/blender/generate_army_v3.py'
@@ -40,9 +41,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate Guardian v4 source
+      - name: Validate Guardian v5 source
         run: |
-          python3 -m py_compile tools/blender/generate_guardian_v4.py tools/blender/generate_guardian_v3.py tools/blender/generate_army_v3.py
+          python3 -m py_compile tools/blender/generate_guardian_v5.py tools/blender/generate_guardian_v4.py tools/blender/generate_guardian_v3.py tools/blender/generate_army_v3.py
 
       - name: Install Blender headless dependencies
         run: |
@@ -60,7 +61,7 @@ jobs:
           grep -q "explicitly released as CC0" "$MAKEHUMAN_BASE_OBJ"
           grep -q '^g body$' "$MAKEHUMAN_BASE_OBJ"
 
-      - name: Generate Guardian v4 Level 1 through 15
+      - name: Generate Guardian v5 Level 1 through 15
         shell: bash
         env:
           REQUESTED_LEVELS: ${{ github.event_name == 'workflow_dispatch' && inputs.levels || '1-15' }}
@@ -70,12 +71,12 @@ jobs:
           set -euxo pipefail
           extra=()
           [[ "$REQUESTED_BLEND" == "true" ]] && extra+=(--save-blend)
-          xvfb-run -a blender -b --python-exit-code 1 --python tools/blender/generate_guardian_v4.py -- \
+          xvfb-run -a blender -b --python-exit-code 1 --python tools/blender/generate_guardian_v5.py -- \
             --levels "$REQUESTED_LEVELS" \
-            --output generated/guardian-v4 \
+            --output generated/guardian-v5 \
             --preview-size "$REQUESTED_SIZE" "${extra[@]}"
 
-      - name: Verify Guardian v4 output
+      - name: Verify Guardian v5 output
         shell: bash
         env:
           REQUESTED_LEVELS: ${{ github.event_name == 'workflow_dispatch' && inputs.levels || '1-15' }}
@@ -94,28 +95,28 @@ jobs:
           print(len([x for x in vals if 1<=x<=15]))
           PY
           )
-          test $(find generated/guardian-v4 -name '*.glb' | wc -l) -eq "$expected"
-          test $(find generated/guardian-v4 -name '*.png' | wc -l) -eq "$expected"
-          test $(find generated/guardian-v4 -name 'metadata.json' | wc -l) -eq "$expected"
+          test $(find generated/guardian-v5 -name '*.glb' | wc -l) -eq "$expected"
+          test $(find generated/guardian-v5 -name '*.png' | wc -l) -eq "$expected"
+          test $(find generated/guardian-v5 -name 'metadata.json' | wc -l) -eq "$expected"
           if [[ "$REQUESTED_BLEND" == "true" ]]; then
-            test $(find generated/guardian-v4 -name '*.blend' | wc -l) -eq "$expected"
+            test $(find generated/guardian-v5 -name '*.blend' | wc -l) -eq "$expected"
           fi
-          test -f generated/guardian-v4/manifest.json
+          test -f generated/guardian-v5/manifest.json
 
-      - name: Build Guardian v4 L1-L15 preview sheet
+      - name: Build Guardian v5 L1-L15 preview sheet
         shell: bash
         run: |
           set -euxo pipefail
-          mapfile -t imgs < <(find generated/guardian-v4/guardian -name 'guardian-level-*.png' | sort)
+          mapfile -t imgs < <(find generated/guardian-v5/guardian -name 'guardian-level-*.png' | sort)
           if [[ ${#imgs[@]} -eq 15 ]]; then
-            montage "${imgs[@]}" -background '#0e1622' -geometry 360x360+8+8 -tile 5x3 generated/guardian-v4/guardian-v4-levels-01-15-sheet.png
+            montage "${imgs[@]}" -background '#111827' -geometry 360x360+8+8 -tile 5x3 generated/guardian-v5/guardian-v5-levels-01-15-sheet.png
           fi
 
-      - name: Upload Guardian v4 Blender artifact
+      - name: Upload Guardian v5 Blender artifact
         uses: actions/upload-artifact@v4
         with:
-          name: guardian-premium-v4-l01-l15-${{ github.run_number }}
-          path: generated/guardian-v4/
+          name: guardian-reference-v5-l01-l15-${{ github.run_number }}
+          path: generated/guardian-v5/
           retention-days: 14
           if-no-files-found: error
           compression-level: 6

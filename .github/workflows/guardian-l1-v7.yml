@@ -1,0 +1,98 @@
+name: Build Guardian L1 Human Proportion v7
+
+on:
+  workflow_dispatch:
+    inputs:
+      preview_size:
+        description: Preview resolution
+        required: true
+        default: '768'
+        type: choice
+        options: ['512', '768']
+  push:
+    branches: [main]
+    paths:
+      - 'tools/blender/generate_guardian_l1_v7.py'
+      - '.github/workflows/guardian-l1-v7.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  guardian-l1-v7:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      BLENDER_VERSION: '4.5.13'
+      BLENDER_DIR: /tmp/blender-4.5.13-linux-x64
+      BASE_ZIP: /tmp/human-base-meshes-v1.4.1.zip
+      BASE_DIR: /tmp/human-base-meshes-v1.4.1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install runtime dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends curl xz-utils unzip xvfb libegl1 libgl1 libgl1-mesa-dri libglx-mesa0 imagemagick
+
+      - name: Download Blender 4.5.13 LTS
+        run: |
+          set -euxo pipefail
+          curl -fL --retry 3 \
+            https://download.blender.org/release/Blender4.5/blender-${BLENDER_VERSION}-linux-x64.tar.xz \
+            -o /tmp/blender.tar.xz
+          tar -xJf /tmp/blender.tar.xz -C /tmp
+          test -x "${BLENDER_DIR}/blender"
+
+      - name: Download Blender Studio CC0 Human Base Meshes
+        run: |
+          set -euxo pipefail
+          curl -fL --retry 3 \
+            https://download.blender.org/demo/asset-bundles/human-base-meshes/human-base-meshes-bundle-v1.4.1.zip \
+            -o "${BASE_ZIP}"
+          rm -rf "${BASE_DIR}"
+          mkdir -p "${BASE_DIR}"
+          unzip -q "${BASE_ZIP}" -d "${BASE_DIR}"
+          test -n "$(find "${BASE_DIR}" -type f -name '*.blend' -print -quit)"
+
+      - name: Generate Guardian L1 v7 human-proportion pass
+        env:
+          REQUESTED_SIZE: ${{ github.event_name == 'workflow_dispatch' && inputs.preview_size || '768' }}
+        run: |
+          set -euxo pipefail
+          rm -rf generated/guardian-l1-v7
+          mkdir -p generated/guardian-l1-v7
+          xvfb-run -a "${BLENDER_DIR}/blender" -b --python-exit-code 1 \
+            --python tools/blender/generate_guardian_l1_v7.py -- \
+            --base-dir "${BASE_DIR}" \
+            --output generated/guardian-l1-v7 \
+            --preview-size "${REQUESTED_SIZE}" \
+            --save-blend
+
+      - name: Verify output
+        run: |
+          set -euxo pipefail
+          test -s generated/guardian-l1-v7/guardian-l1-front.png
+          test -s generated/guardian-l1-v7/guardian-l1-threequarter.png
+          test -s generated/guardian-l1-v7/guardian-l1-side.png
+          test -s generated/guardian-l1-v7/guardian-level-01.glb
+          test -s generated/guardian-l1-v7/guardian-level-01.blend
+          test -s generated/guardian-l1-v7/metadata.json
+
+      - name: Build review sheet
+        run: |
+          montage \
+            generated/guardian-l1-v7/guardian-l1-front.png \
+            generated/guardian-l1-v7/guardian-l1-threequarter.png \
+            generated/guardian-l1-v7/guardian-l1-side.png \
+            -tile 3x1 -geometry +12+12 -background '#0a1020' \
+            generated/guardian-l1-v7/guardian-l1-review-sheet.png
+          test -s generated/guardian-l1-v7/guardian-l1-review-sheet.png
+
+      - name: Upload Guardian L1 v7 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: guardian-l1-v7-human-proportion-${{ github.run_number }}
+          path: generated/guardian-l1-v7/
+          if-no-files-found: error
+          retention-days: 14

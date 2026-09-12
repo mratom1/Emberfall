@@ -1,0 +1,182 @@
+name: Build Blender Army v3
+
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: Generate one troop or all 22 troops
+        required: true
+        type: choice
+        default: single
+        options: [single, all]
+      unit:
+        description: Troop id for single mode
+        required: true
+        default: guardian
+        type: string
+      levels:
+        description: Level range/list, e.g. 1-15 or 1,5,10,15
+        required: true
+        default: 1-15
+        type: string
+      preview_size:
+        description: Preview resolution
+        required: true
+        type: choice
+        default: '512'
+        options: ['384', '512', '768']
+      save_blend:
+        description: Include editable .blend files (large artifacts)
+        required: true
+        default: false
+        type: boolean
+  push:
+    branches: [main]
+    paths:
+      - 'tools/blender/generate_army_v3.py'
+      - 'art/blender/unit_specs.json'
+      - '.github/workflows/blender-army.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      LIBGL_ALWAYS_SOFTWARE: '1'
+    strategy:
+      fail-fast: false
+      matrix:
+        unit: [guardian, ranger, giant, phoenix]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate sources
+        run: |
+          python3 -m py_compile tools/blender/generate_army_v3.py
+          python3 -m json.tool art/blender/unit_specs.json >/dev/null
+      - name: Install Blender headless dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends blender python3-numpy xvfb libegl1 libgl1 libgl1-mesa-dri libglx-mesa0
+      - name: Generate representative levels
+        run: |
+          set -euxo pipefail
+          xvfb-run -a blender -b --python-exit-code 1 --python tools/blender/generate_army_v3.py -- \
+            --unit '${{ matrix.unit }}' --levels '1,4,8,12,15' \
+            --output generated/army-v3 --preview-size 384
+      - name: Verify output
+        run: |
+          test $(find generated/army-v3 -name '*.glb' | wc -l) -eq 5
+          test $(find generated/army-v3 -name '*.png' | wc -l) -eq 5
+      - uses: actions/upload-artifact@v4
+        with:
+          name: army-v3-smoke-${{ matrix.unit }}-${{ github.run_number }}
+          path: generated/army-v3/
+          retention-days: 14
+          if-no-files-found: error
+
+  single:
+    if: github.event_name == 'workflow_dispatch' && inputs.scope == 'single'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      LIBGL_ALWAYS_SOFTWARE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 -m py_compile tools/blender/generate_army_v3.py
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends blender python3-numpy xvfb libegl1 libgl1 libgl1-mesa-dri libglx-mesa0
+      - name: Generate troop
+        env:
+          UNIT: ${{ inputs.unit }}
+          LEVELS: ${{ inputs.levels }}
+          SIZE: ${{ inputs.preview_size }}
+          SAVE_BLEND: ${{ inputs.save_blend }}
+        run: |
+          set -euxo pipefail
+          extra=()
+          [[ "$SAVE_BLEND" == "true" ]] && extra+=(--save-blend)
+          xvfb-run -a blender -b --python-exit-code 1 --python tools/blender/generate_army_v3.py -- \
+            --unit "$UNIT" --levels "$LEVELS" --output generated/army-v3 --preview-size "$SIZE" "${extra[@]}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: army-v3-${{ inputs.unit }}-${{ github.run_number }}
+          path: generated/army-v3/
+          retention-days: 14
+          if-no-files-found: error
+
+  all:
+    if: github.event_name == 'workflow_dispatch' && inputs.scope == 'all'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      LIBGL_ALWAYS_SOFTWARE: '1'
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        unit:
+          - guardian
+          - ranger
+          - giant
+          - raider
+          - mage
+          - breaker
+          - wyvern
+          - colossus
+          - lancer
+          - bomber
+          - healer
+          - berserker
+          - musketeer
+          - sentinel
+          - assassin
+          - frostweaver
+          - hammerguard
+          - stormcaller
+          - valkyrie
+          - drake
+          - duelist
+          - phoenix
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 -m py_compile tools/blender/generate_army_v3.py
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends blender python3-numpy xvfb libegl1 libgl1 libgl1-mesa-dri libglx-mesa0
+      - name: Generate all levels for this troop
+        env:
+          LEVELS: ${{ inputs.levels }}
+          SIZE: ${{ inputs.preview_size }}
+          SAVE_BLEND: ${{ inputs.save_blend }}
+        run: |
+          set -euxo pipefail
+          extra=()
+          [[ "$SAVE_BLEND" == "true" ]] && extra+=(--save-blend)
+          xvfb-run -a blender -b --python-exit-code 1 --python tools/blender/generate_army_v3.py -- \
+            --unit '${{ matrix.unit }}' --levels "$LEVELS" --output generated/army-v3 --preview-size "$SIZE" "${extra[@]}"
+      - name: Verify complete level set
+        run: |
+          expected=$(python3 - <<'PY'
+          text='${{ inputs.levels }}'
+          vals=set()
+          for c in text.split(','):
+              c=c.strip()
+              if '-' in c:
+                  a,b=map(int,c.split('-',1));vals.update(range(min(a,b),max(a,b)+1))
+              elif c: vals.add(int(c))
+          print(len([x for x in vals if 1 <= x <= 15]))
+          PY
+          )
+          test $(find generated/army-v3 -name '*.glb' | wc -l) -eq "$expected"
+          test $(find generated/army-v3 -name '*.png' | wc -l) -eq "$expected"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: army-v3-${{ matrix.unit }}-${{ github.run_number }}
+          path: generated/army-v3/
+          retention-days: 14
+          if-no-files-found: error

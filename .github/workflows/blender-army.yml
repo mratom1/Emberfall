@@ -28,6 +28,7 @@ on:
     branches: [main]
     paths:
       - 'tools/blender/generate_army_v4.py'
+      - 'tools/blender/run_army_v4.py'
       - 'art/blender/unit_specs.json'
       - '.github/workflows/blender-army.yml'
 
@@ -46,7 +47,7 @@ jobs:
 
       - name: Validate Guardian generator
         run: |
-          python3 -m py_compile tools/blender/generate_army_v4.py
+          python3 -m py_compile tools/blender/generate_army_v4.py tools/blender/run_army_v4.py
           python3 -m json.tool art/blender/unit_specs.json >/dev/null
 
       - name: Install Blender headless dependencies
@@ -58,7 +59,7 @@ jobs:
       - name: Generate Guardian Level 1 through 15
         run: |
           set -euxo pipefail
-          xvfb-run -a blender -b --python-exit-code 1 --python tools/blender/generate_army_v4.py -- \
+          xvfb-run -a blender -b --python-exit-code 1 --python tools/blender/run_army_v4.py -- \
             --unit guardian --levels 1-15 \
             --output generated/army-v4 --preview-size 512 --save-blend
 
@@ -90,7 +91,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install and validate
         run: |
-          python3 -m py_compile tools/blender/generate_army_v4.py
+          python3 -m py_compile tools/blender/generate_army_v4.py tools/blender/run_army_v4.py
           python3 -m json.tool art/blender/unit_specs.json >/dev/null
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends blender python3-numpy xvfb libegl1 libgl1 libgl1-mesa-dri libglx-mesa0
@@ -104,7 +105,7 @@ jobs:
           set -euxo pipefail
           extra=()
           [[ "$SAVE_BLEND" == "true" ]] && extra+=(--save-blend)
-          xvfb-run -a blender -b --python-exit-code 1 --python tools/blender/generate_army_v4.py -- \
+          xvfb-run -a blender -b --python-exit-code 1 --python tools/blender/run_army_v4.py -- \
             --unit "$UNIT" --levels "$LEVELS" --output generated/army-v4 --preview-size "$SIZE" "${extra[@]}"
       - name: Verify requested levels
         run: |

@@ -22,9 +22,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'tools/blender/generate_guardian_v1.py'
+      - 'tools/blender/generate_guardian_v2.py'
       - 'tools/blender/generate_army_v3.py'
-      - 'art/blender/unit_specs.json'
       - '.github/workflows/blender-army.yml'
 
 permissions:
@@ -39,18 +38,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate dedicated Guardian source
+      - name: Validate premium Guardian source
         run: |
-          python3 -m py_compile tools/blender/generate_guardian_v1.py tools/blender/generate_army_v3.py
-          python3 -m json.tool art/blender/unit_specs.json >/dev/null
+          python3 -m py_compile tools/blender/generate_guardian_v2.py tools/blender/generate_army_v3.py
 
       - name: Install Blender headless dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends blender python3-numpy xvfb libegl1 libgl1 libgl1-mesa-dri libglx-mesa0
+          sudo apt-get install -y --no-install-recommends blender python3-numpy xvfb libegl1 libgl1 libgl1-mesa-dri libglx-mesa0 imagemagick
           xvfb-run -a blender -b --python-exit-code 1 --python-expr "import bpy; print('Blender ready:', bpy.app.version_string)"
 
-      - name: Generate detailed Guardian levels
+      - name: Generate smooth Guardian levels
         shell: bash
         env:
           REQUESTED_LEVELS: ${{ github.event_name == 'workflow_dispatch' && inputs.levels || '1-15' }}
@@ -60,9 +58,9 @@ jobs:
           set -euxo pipefail
           extra=()
           [[ "$REQUESTED_BLEND" == "true" ]] && extra+=(--save-blend)
-          xvfb-run -a blender -b --python-exit-code 1 --python tools/blender/generate_guardian_v1.py -- \
+          xvfb-run -a blender -b --python-exit-code 1 --python tools/blender/generate_guardian_v2.py -- \
             --levels "$REQUESTED_LEVELS" \
-            --output generated/guardian-v1 \
+            --output generated/guardian-v2 \
             --preview-size "$REQUESTED_SIZE" "${extra[@]}"
 
       - name: Verify Guardian output
@@ -85,19 +83,28 @@ jobs:
           print(len([x for x in vals if 1 <= x <= 15]))
           PY
           )
-          test $(find generated/guardian-v1 -name '*.glb' | wc -l) -eq "$expected"
-          test $(find generated/guardian-v1 -name '*.png' | wc -l) -eq "$expected"
-          test $(find generated/guardian-v1 -name 'metadata.json' | wc -l) -eq "$expected"
+          test $(find generated/guardian-v2 -name '*.glb' | wc -l) -eq "$expected"
+          test $(find generated/guardian-v2 -name '*.png' | wc -l) -eq "$expected"
+          test $(find generated/guardian-v2 -name 'metadata.json' | wc -l) -eq "$expected"
           if [[ "$REQUESTED_BLEND" == "true" ]]; then
-            test $(find generated/guardian-v1 -name '*.blend' | wc -l) -eq "$expected"
+            test $(find generated/guardian-v2 -name '*.blend' | wc -l) -eq "$expected"
           fi
-          test -f generated/guardian-v1/manifest.json
+          test -f generated/guardian-v2/manifest.json
+
+      - name: Build L1-L15 preview sheet
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mapfile -t imgs < <(find generated/guardian-v2/guardian -name 'guardian-level-*.png' | sort)
+          if [[ ${#imgs[@]} -eq 15 ]]; then
+            montage "${imgs[@]}" -background '#111923' -geometry 320x320+8+8 -tile 5x3 generated/guardian-v2/guardian-levels-01-15-sheet.png
+          fi
 
       - name: Upload Guardian Blender artifact
         uses: actions/upload-artifact@v4
         with:
-          name: guardian-detailed-l01-l15-${{ github.run_number }}
-          path: generated/guardian-v1/
+          name: guardian-smooth-v2-l01-l15-${{ github.run_number }}
+          path: generated/guardian-v2/
           retention-days: 14
           if-no-files-found: error
           compression-level: 6

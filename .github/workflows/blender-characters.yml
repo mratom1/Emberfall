@@ -76,7 +76,7 @@ jobs:
 
       - name: Validate generator source
         run: |
-          python3 -m py_compile tools/blender/generate_unit.py tools/blender/run_generator.py
+          python3 -m py_compile tools/blender/generate_character_v2.py
           python3 -m json.tool art/blender/unit_specs.json >/dev/null
 
       - name: Install Blender and headless rendering dependencies
@@ -88,16 +88,16 @@ jobs:
           blender -b --python-exit-code 1 --python-expr "import numpy; print('Blender NumPy:', numpy.__version__)"
           xvfb-run -a blender -b --python-exit-code 1 --python-expr "import bpy; print('Headless Blender renderer ready:', bpy.app.version_string)"
 
-      - name: Smoke-generate representative assets on push
+      - name: Smoke-generate polished representative assets on push
         if: github.event_name == 'push'
         run: |
           set -euxo pipefail
-          xvfb-run -a blender -b --python-exit-code 1 --python tools/blender/run_generator.py -- \
-            --kind troop --unit guardian --levels 1,5,10,15 \
-            --output generated/blender --preview-size 320
-          xvfb-run -a blender -b --python-exit-code 1 --python tools/blender/run_generator.py -- \
-            --kind hero --unit king --levels 1,10,25,50 \
-            --output generated/blender --preview-size 320
+          xvfb-run -a blender -b --python-exit-code 1 --python tools/blender/generate_character_v2.py -- \
+            --kind troop --unit guardian --levels 1,3,6,9,12,15 \
+            --output generated/blender --preview-size 384
+          xvfb-run -a blender -b --python-exit-code 1 --python tools/blender/generate_character_v2.py -- \
+            --kind hero --unit king --levels 1,10,20,30,40,50 \
+            --output generated/blender --preview-size 384
 
       - name: Generate selected character assets
         if: github.event_name == 'workflow_dispatch'
@@ -115,22 +115,22 @@ jobs:
           if [[ "$SAVE_BLEND" == "true" ]]; then extra+=(--save-blend); fi
           case "$SCOPE" in
             single)
-              xvfb-run -a blender -b --python-exit-code 1 --python tools/blender/run_generator.py -- \
+              xvfb-run -a blender -b --python-exit-code 1 --python tools/blender/generate_character_v2.py -- \
                 --kind "$KIND" --unit "$UNIT" --levels "$LEVELS" \
                 --output generated/blender --preview-size "$PREVIEW_SIZE" "${extra[@]}"
               ;;
             all-troops)
-              xvfb-run -a blender -b --python-exit-code 1 --python tools/blender/run_generator.py -- \
+              xvfb-run -a blender -b --python-exit-code 1 --python tools/blender/generate_character_v2.py -- \
                 --all-troops --levels "$LEVELS" \
                 --output generated/blender --preview-size "$PREVIEW_SIZE" "${extra[@]}"
               ;;
             all-heroes)
-              xvfb-run -a blender -b --python-exit-code 1 --python tools/blender/run_generator.py -- \
+              xvfb-run -a blender -b --python-exit-code 1 --python tools/blender/generate_character_v2.py -- \
                 --all-heroes --levels "$LEVELS" \
                 --output generated/blender --preview-size "$PREVIEW_SIZE" "${extra[@]}"
               ;;
             all)
-              xvfb-run -a blender -b --python-exit-code 1 --python tools/blender/run_generator.py -- \
+              xvfb-run -a blender -b --python-exit-code 1 --python tools/blender/generate_character_v2.py -- \
                 --all --levels "$LEVELS" \
                 --output generated/blender --preview-size "$PREVIEW_SIZE" "${extra[@]}"
               ;;
@@ -149,7 +149,7 @@ jobs:
       - name: Upload editable Blender output
         uses: actions/upload-artifact@v4
         with:
-          name: emberfall-blender-${{ github.run_number }}
+          name: emberfall-blender-v2-${{ github.run_number }}
           path: generated/blender/
           if-no-files-found: error
           retention-days: 14
@@ -171,5 +171,5 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add dist/assets/characters-blender
-          git commit -m "Generate Blender character assets"
+          git commit -m "Generate polished Blender character assets"
           git push

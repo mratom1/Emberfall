@@ -77,20 +77,21 @@ jobs:
           python3 -m py_compile tools/blender/generate_unit.py tools/blender/run_generator.py
           python3 -m json.tool art/blender/unit_specs.json >/dev/null
 
-      - name: Install Blender
+      - name: Install Blender and glTF dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends blender
+          sudo apt-get install -y --no-install-recommends blender python3-numpy
           blender --version
+          blender -b --python-exit-code 1 --python-expr "import numpy; print('Blender NumPy:', numpy.__version__)"
 
       - name: Smoke-generate representative assets on push
         if: github.event_name == 'push'
         run: |
           set -euxo pipefail
-          blender -b --python tools/blender/run_generator.py -- \
+          blender -b --python-exit-code 1 --python tools/blender/run_generator.py -- \
             --kind troop --unit guardian --levels 1,5,10,15 \
             --output generated/blender --preview-size 320
-          blender -b --python tools/blender/run_generator.py -- \
+          blender -b --python-exit-code 1 --python tools/blender/run_generator.py -- \
             --kind hero --unit king --levels 1,10,25,50 \
             --output generated/blender --preview-size 320
 
@@ -110,22 +111,22 @@ jobs:
           if [[ "$SAVE_BLEND" == "true" ]]; then extra+=(--save-blend); fi
           case "$SCOPE" in
             single)
-              blender -b --python tools/blender/run_generator.py -- \
+              blender -b --python-exit-code 1 --python tools/blender/run_generator.py -- \
                 --kind "$KIND" --unit "$UNIT" --levels "$LEVELS" \
                 --output generated/blender --preview-size "$PREVIEW_SIZE" "${extra[@]}"
               ;;
             all-troops)
-              blender -b --python tools/blender/run_generator.py -- \
+              blender -b --python-exit-code 1 --python tools/blender/run_generator.py -- \
                 --all-troops --levels "$LEVELS" \
                 --output generated/blender --preview-size "$PREVIEW_SIZE" "${extra[@]}"
               ;;
             all-heroes)
-              blender -b --python tools/blender/run_generator.py -- \
+              blender -b --python-exit-code 1 --python tools/blender/run_generator.py -- \
                 --all-heroes --levels "$LEVELS" \
                 --output generated/blender --preview-size "$PREVIEW_SIZE" "${extra[@]}"
               ;;
             all)
-              blender -b --python tools/blender/run_generator.py -- \
+              blender -b --python-exit-code 1 --python tools/blender/run_generator.py -- \
                 --all --levels "$LEVELS" \
                 --output generated/blender --preview-size "$PREVIEW_SIZE" "${extra[@]}"
               ;;

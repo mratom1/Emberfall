@@ -1,0 +1,101 @@
+name: Build Guardian L1 Character Lab v14
+
+on:
+  push:
+    branches: [character-lab-v14]
+    paths:
+      - 'character-lab/guardian-l1-v14/**'
+      - '.github/workflows/guardian-lab-v14.yml'
+  workflow_dispatch:
+    inputs:
+      preview_size:
+        description: Preview resolution
+        required: true
+        default: '900'
+        type: choice
+        options: ['768', '900', '1024']
+
+permissions:
+  contents: read
+
+jobs:
+  guardian-l1-v14:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      BLENDER_VERSION: '4.5.13'
+      BLENDER_DIR: /tmp/blender-4.5.13-linux-x64
+      SOURCE_ZIP: /tmp/cartoon-medieval-knight.zip
+      SOURCE_DIR: /tmp/cartoon-medieval-knight
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: character-lab-v14
+
+      - name: Install runtime dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends curl xz-utils unzip xvfb libegl1 libgl1 libgl1-mesa-dri libglx-mesa0 imagemagick
+
+      - name: Download Blender 4.5.13 LTS
+        run: |
+          set -euxo pipefail
+          curl -fL --retry 3 \
+            https://download.blender.org/release/Blender4.5/blender-${BLENDER_VERSION}-linux-x64.tar.xz \
+            -o /tmp/blender.tar.xz
+          tar -xJf /tmp/blender.tar.xz -C /tmp
+          test -x "${BLENDER_DIR}/blender"
+
+      - name: Download CC0 mobile knight base
+        run: |
+          set -euxo pipefail
+          rm -rf "${SOURCE_DIR}"
+          mkdir -p "${SOURCE_DIR}"
+          curl -fL --retry 5 --retry-all-errors \
+            'https://opengameart.org/sites/default/files/Cartoon%20Medieval%20Knight.zip' \
+            -o "${SOURCE_ZIP}"
+          unzip -q "${SOURCE_ZIP}" -d "${SOURCE_DIR}"
+          find "${SOURCE_DIR}" -type f -name '*.blend' -print
+          test -n "$(find "${SOURCE_DIR}" -type f -name '*.blend' -print -quit)"
+
+      - name: Generate Guardian L1 v14
+        env:
+          REQUESTED_SIZE: ${{ github.event_name == 'workflow_dispatch' && inputs.preview_size || '900' }}
+        run: |
+          set -euxo pipefail
+          SOURCE_BLEND="$(find "${SOURCE_DIR}" -type f -name '*.blend' -print -quit)"
+          rm -rf character-lab/guardian-l1-v14/output
+          mkdir -p character-lab/guardian-l1-v14/output
+          xvfb-run -a "${BLENDER_DIR}/blender" -b --python-exit-code 1 \
+            --python character-lab/guardian-l1-v14/build_guardian.py -- \
+            --source "${SOURCE_BLEND}" \
+            --output character-lab/guardian-l1-v14/output \
+            --preview-size "${REQUESTED_SIZE}"
+
+      - name: Verify output
+        run: |
+          set -euxo pipefail
+          test -s character-lab/guardian-l1-v14/output/guardian-l1-front.png
+          test -s character-lab/guardian-l1-v14/output/guardian-l1-threequarter.png
+          test -s character-lab/guardian-l1-v14/output/guardian-l1-side.png
+          test -s character-lab/guardian-l1-v14/output/guardian-l1.glb
+          test -s character-lab/guardian-l1-v14/output/guardian-l1.blend
+          test -s character-lab/guardian-l1-v14/output/metadata.json
+
+      - name: Build review sheet
+        run: |
+          montage \
+            character-lab/guardian-l1-v14/output/guardian-l1-front.png \
+            character-lab/guardian-l1-v14/output/guardian-l1-threequarter.png \
+            character-lab/guardian-l1-v14/output/guardian-l1-side.png \
+            -tile 3x1 -geometry +12+12 -background '#08101f' \
+            character-lab/guardian-l1-v14/output/guardian-l1-review-sheet.png
+          test -s character-lab/guardian-l1-v14/output/guardian-l1-review-sheet.png
+
+      - name: Upload isolated Guardian L1 v14 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: guardian-l1-character-lab-v14-${{ github.run_number }}
+          path: character-lab/guardian-l1-v14/output/
+          if-no-files-found: error
+          retention-days: 14

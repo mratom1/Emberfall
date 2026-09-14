@@ -18,6 +18,21 @@ function rock(p,r,c,x,y,z){const m=mesh(p,new THREE.DodecahedronGeometry(r,0),c,
 function sphere(p,r,c,x,y,z){return mesh(p,new THREE.IcosahedronGeometry(r,1),c,x,y,z);}
 function seeded(seed){return()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};}
 export const BIRD_SPECIES=['swift','dove','crane','eagle'];
+export const BIRD_FLIGHT=Object.freeze({
+  swift:Object.freeze({speed:[.022,.029],flap:[9,13],bob:.16,weave:.55,bank:.30,scale:.64}),
+  dove:Object.freeze({speed:[.016,.021],flap:[5.4,7.2],bob:.30,weave:.20,bank:.13,scale:.76}),
+  crane:Object.freeze({speed:[.012,.016],flap:[3.0,4.2],bob:.20,weave:.08,bank:.08,scale:.90}),
+  eagle:Object.freeze({speed:[.013,.018],flap:[1.0,1.6],bob:.36,weave:.34,bank:.42,scale:1.08})
+});
+export function birdFlockPlan(total,random=Math.random){
+  const birds=[],count=Math.max(0,Math.floor(total)),speciesOffset=Math.floor(random()*BIRD_SPECIES.length);let remaining=count,flockId=0;
+  while(remaining>0){
+    const species=BIRD_SPECIES[(speciesOffset+flockId)%BIRD_SPECIES.length],profile=BIRD_FLIGHT[species],size=Math.min(remaining,3+Math.floor(random()*3)),heading=random()*Math.PI*2,phase=random(),altitude=7+random()*7,originX=(random()-.5)*18,originZ=(random()-.5)*18,speed=profile.speed[0]+random()*(profile.speed[1]-profile.speed[0]);
+    for(let slot=0;slot<size;slot++){const row=Math.ceil(slot/2),side=slot%2?-1:1;birds.push({flockId,species,scale:profile.scale*(.9+random()*.2),flight:{heading,phase:(phase+row*.012)%1,speed,altitude,originX,originZ,lateral:slot?side*row*(species==='crane'?1.45:1.08):0,trail:row*(species==='swift'?1.35:1.8),bob:random()*Math.PI*2,flap:profile.flap[0]+random()*(profile.flap[1]-profile.flap[0]),bobAmount:profile.bob,weave:profile.weave,bank:profile.bank}});}
+    remaining-=size;flockId++;
+  }
+  return birds;
+}
 export function birdModel(species='swift',scale=1){
   if(!BIRD_SPECIES.includes(species))species='swift';
   const g=new THREE.Group(),colors={swift:[0x263b42,0x48636b],dove:[0xd8d4c5,0x8b958f],crane:[0xe7e1cf,0x343f42],eagle:[0x6c4b31,0xc59b55]},[bodyColor,wingColor]=colors[species];
@@ -457,10 +472,9 @@ export class World{
 
     const clouds=new THREE.Group();for(let i=0;i<44;i++){const angle=i/44*Math.PI*2,cloud=new THREE.Group(),x=-12+Math.cos(angle)*(94+r()*12),z=Math.sin(angle)*(78+r()*12);for(let j=0;j<7;j++){const puff=mesh(cloud,new THREE.SphereGeometry(1,12,8),0xe8efeb,x+(j-3)*2.7,9+r()*4,z+(r()-.5)*5);puff.scale.set(4+r()*3,1.6+r()*1.8,3+r()*3);}const m=merged(cloud);m.material.dispose();m.material=new THREE.MeshBasicMaterial({color:0xe5eeea,transparent:true,opacity:.65,depthWrite:false});m.castShadow=false;m.receiveShadow=false;m.userData.phase=i;clouds.add(m);}this.clouds=clouds;this.scene.add(clouds);
 
-    // Several lightweight flocks cross the valley. Count, species mix, height and routes change each session.
-    this.birds=new THREE.Group();const birdCount=(this.mobile?7:12)+Math.floor(Math.random()*(this.mobile?7:13)),speciesOffset=Math.floor(Math.random()*BIRD_SPECIES.length),flocks=[];
-    for(let i=0;i<Math.ceil(birdCount/4);i++)flocks.push({heading:Math.random()*Math.PI*2,phase:Math.random(),speed:.012+Math.random()*.012,altitude:7+Math.random()*7,originX:(Math.random()-.5)*18,originZ:(Math.random()-.5)*18});
-    for(let i=0;i<birdCount;i++){const flock=flocks[Math.floor(i/4)%flocks.length],species=BIRD_SPECIES[(i+speciesOffset)%BIRD_SPECIES.length],bird=birdModel(species,(species==='eagle'?1.08:.68)+Math.random()*.28);bird.userData.flight={...flock,phase:(flock.phase+(i%4)*.018)%1,lateral:(i%2?-1:1)*Math.ceil(i%4/2)*1.15,bob:Math.random()*6.28,flap:5.5+Math.random()*3};this.birds.add(bird);}
+    // Every flock is one species. Species keep their own formation, pace and wing rhythm.
+    this.birds=new THREE.Group();const birdCount=(this.mobile?7:12)+Math.floor(Math.random()*(this.mobile?7:13));
+    for(const member of birdFlockPlan(birdCount)){const bird=birdModel(member.species,member.scale);bird.userData.flockId=member.flockId;bird.userData.flight=member.flight;this.birds.add(bird);}
     this.scene.add(this.birds);this.updateBirdVisibility();
 
   }
@@ -643,7 +657,7 @@ export class World{
   }
   animate(dt,t){
     this.stepWorkers(dt,t);
-    for(const bird of this.birds?.children||[]){if(!bird.visible)continue;const f=bird.userData.flight,u=(f.phase+t*f.speed)%1,d=(u-.5)*132,forwardX=Math.sin(f.heading),forwardZ=Math.cos(f.heading),sideX=forwardZ,sideZ=-forwardX;bird.position.set(f.originX+forwardX*d+sideX*f.lateral,f.altitude+Math.sin(t*1.4+f.bob)*.32,f.originZ+forwardZ*d+sideZ*f.lateral);bird.rotation.y=f.heading;const flap=Math.sin(t*f.flap+f.bob)*(bird.userData.species==='eagle'?.42:.68);bird.userData.wings.left.rotation.z=flap;bird.userData.wings.right.rotation.z=-flap;}
+    for(const bird of this.birds?.children||[]){if(!bird.visible)continue;const f=bird.userData.flight,species=bird.userData.species,u=(f.phase+t*f.speed)%1,d=(u-.5)*132-f.trail,forwardX=Math.sin(f.heading),forwardZ=Math.cos(f.heading),sideX=forwardZ,sideZ=-forwardX,weave=Math.sin(t*(species==='swift'?2.4:species==='eagle'?.55:.9)+f.bob)*f.weave;bird.position.set(f.originX+forwardX*d+sideX*(f.lateral+weave),f.altitude+Math.sin(t*(species==='crane'?.75:1.25)+f.bob)*f.bobAmount,f.originZ+forwardZ*d+sideZ*(f.lateral+weave));bird.rotation.y=f.heading+Math.sin(t*.7+f.bob)*f.bank*.08;bird.rotation.z=Math.sin(t*(species==='swift'?2.4:.65)+f.bob)*f.bank;const wave=Math.sin(t*f.flap+f.bob),flap=species==='eagle'?(wave<-.82?(wave+.82)*1.7:.035*Math.sin(t*.45+f.bob)):wave*(species==='crane'?.54:species==='swift'?.78:.64);bird.userData.wings.left.rotation.z=flap;bird.userData.wings.right.rotation.z=-flap;}
     for(const item of this.coins){item.coin.position.y=item.base+Math.sin(t*2.1)*.13;item.coin.rotation.y=t*.9;item.coin.visible=(item.b.stored||0)>3&&!item.b.finishAt;}
     for(const v of this.villagers){const a=t*v.speed+v.phase;if(v.route===0){v.model.position.set(Math.sin(a)*.32,.015,Math.cos(a)*7);v.model.rotation.y=Math.sin(a)>0?Math.PI:0;}else if(v.route===1){v.model.position.set(Math.cos(a)*6,.015,2+Math.sin(a)*.28);v.model.rotation.y=Math.sin(a)>0?-Math.PI/2:Math.PI/2;}else{v.model.position.set(2.6+Math.cos(a)*1.5,.015,6.7+Math.sin(a)*.6);v.model.rotation.y=-a;}v.model.position.y+=animateUnit(v.model,t,true,v.phase);}
     for(const group of [this.heroVisitors])for(const model of group?.children||[]){if(model.userData.resting){animateUnit(model,t,false);continue;}model.userData.homePosition??=model.position.clone();const h=model.userData.homePosition,phase=model.userData.phase||h.x,a=t*.55+phase;model.position.set(h.x+Math.cos(a)*.3,.03+animateUnit(model,t,true,phase),h.z+Math.sin(a)*.3);model.rotation.y=-a;}

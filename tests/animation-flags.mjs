@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {makeUnit,animateUnit,World,BIRD_SPECIES,birdModel} from '../dist/world.js';
+import {makeUnit,animateUnit,World,BIRD_SPECIES,BIRD_FLIGHT,birdModel,birdFlockPlan} from '../dist/world.js';
 import {TROOPS,HEROES} from '../dist/model.js';
 import {flagCanvas} from '../dist/flags.js';
 for(const [type,def] of Object.entries({...TROOPS,...HEROES})){
@@ -9,6 +9,8 @@ for(const [type,def] of Object.entries({...TROOPS,...HEROES})){
 console.log('PASS Every ground troop and hero has opposing walking legs; idle stops walking and flying units stay airborne');
 const birdShapes=new Set();for(const species of BIRD_SPECIES){const bird=birdModel(species),w=bird.userData.wings;assert.equal(bird.userData.species,species);assert.ok(w.left&&w.right);let signature='';bird.traverse(o=>{if(o.isMesh){o.geometry.computeBoundingBox();const b=o.geometry.boundingBox;signature+=`${o.geometry.type}:${o.geometry.attributes.position.count}:${b.min.x},${b.max.x},${b.min.z},${b.max.z}:${o.position.x},${o.position.y},${o.position.z}|`;}});birdShapes.add(signature);}assert.equal(birdShapes.size,BIRD_SPECIES.length);
 console.log('PASS Swift, dove, crane and eagle models have distinct silhouettes and animated wing rigs');
+let seed=19;const plan=birdFlockPlan(24,()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;}),flocks=new Map();for(const bird of plan){if(!flocks.has(bird.flockId))flocks.set(bird.flockId,new Set());flocks.get(bird.flockId).add(bird.species);assert.equal(bird.flight.flap>=BIRD_FLIGHT[bird.species].flap[0]&&bird.flight.flap<=BIRD_FLIGHT[bird.species].flap[1],true);}assert.equal(plan.length,24);assert.ok(flocks.size>=4);assert.ok([...flocks.values()].every(species=>species.size===1));assert.equal(new Set(BIRD_SPECIES.map(species=>JSON.stringify(BIRD_FLIGHT[species]))).size,BIRD_SPECIES.length);
+console.log('PASS Ambient flocks never mix species and every species keeps a distinct flight profile');
 const originals={fetch:globalThis.fetch,Image:globalThis.Image,document:globalThis.document};let draws=0;
 globalThis.fetch=async()=>({ok:true,json:async()=>({mm:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480"><path fill="red" d="M0 0h640v480H0z"/></svg>'})});globalThis.Image=class{set src(value){assert.ok(decodeURIComponent(value).includes('width="256" height="192"'));queueMicrotask(()=>this.onload());}};globalThis.document={createElement:()=>({getContext:()=>({drawImage(){draws++;}})})};
 try{const c=await flagCanvas('mm');assert.equal(c.width,256);assert.equal(c.height,192);assert.equal(await flagCanvas('mm'),c);assert.equal(draws,1);await assert.rejects(flagCanvas('invalid'));const material={color:{setHex(v){this.hex=v;}},map:null};const cloth={userData:{},material};await World.prototype.applyFlagTexture.call({callbacks:{}},cloth,'mm');assert.equal(material.map.isCanvasTexture,true);assert.equal(material.map.generateMipmaps,false);assert.equal(material.color.hex,0xffffff);material.map.dispose();}finally{Object.assign(globalThis,originals);}

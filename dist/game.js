@@ -13,7 +13,7 @@ import * as X from './expansion.js?v=17.2.0';
 import {ExpansionUI} from './expansion-ui.js?v=17.2.0';
 import {Connection,requestId} from './connection.js?v=17.2.0';
 import {Features,escapeHtml} from './features.js?v=17.2.0';
-import {World} from './world.js?v=17.2.0';
+import {World} from './world.js?v=17.2.1';
 import {TYPES,TROOPS,QUESTS,SAVE_KEY,loadState,capacity,resourceCapacity,armyCapacity,armySize,queueSize,hallLevel,freeBuilders,producerRate,productionCapacity,upgradeCost,canPlace,build,upgrade,train,advance,collect,claimQuest,enemyDef,createBattle,deploy,strike,stepBattle,settleBattle} from './model.js?v=17.2.0';
 
 installLandscape();

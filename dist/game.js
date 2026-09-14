@@ -1,20 +1,20 @@
-import {SocialUI} from './social-ui.js?v=14.0.0';
-import {modelPortrait,installModelPictures} from './portraits.js?v=14.0.0';
-import {VillageUI} from './village-ui.js?v=14.0.0';
-import * as R from './raids.js?v=14.0.0';
-import {RaidUI} from './raid-ui.js?v=14.0.0';
-import {installLandscape} from './viewport.js?v=14.0.0';
-import {GRAPHICS,graphicsProfile} from './graphics.js?v=14.0.0';
-import {AccountUI} from './account-ui.js?v=14.0.0';
-import {nativeApp,chooseServer} from './native.js?v=14.0.0';
-import {QualityUI} from './quality-ui.js?v=14.0.0';
-import * as M from './model.js?v=14.0.0';
-import * as X from './expansion.js?v=14.0.0';
-import {ExpansionUI} from './expansion-ui.js?v=14.0.0';
-import {Connection,requestId} from './connection.js?v=14.0.0';
-import {Features,escapeHtml} from './features.js?v=14.0.0';
-import {World} from './world.js?v=14.0.0';
-import {TYPES,TROOPS,QUESTS,SAVE_KEY,loadState,capacity,armyCapacity,armySize,queueSize,hallLevel,freeBuilders,producerRate,productionCapacity,upgradeCost,canPlace,build,upgrade,train,advance,collect,claimQuest,enemyDef,createBattle,deploy,strike,stepBattle,settleBattle} from './model.js?v=14.0.0';
+import {SocialUI} from './social-ui.js?v=16.0.0';
+import {modelPortrait,installModelPictures} from './portraits.js?v=16.0.0';
+import {VillageUI} from './village-ui.js?v=16.0.0';
+import * as R from './raids.js?v=16.0.0';
+import {RaidUI} from './raid-ui.js?v=16.0.0';
+import {installLandscape} from './viewport.js?v=16.0.0';
+import {GRAPHICS,graphicsProfile} from './graphics.js?v=16.0.0';
+import {AccountUI} from './account-ui.js?v=16.0.0';
+import {nativeApp,chooseServer} from './native.js?v=16.0.0';
+import {QualityUI} from './quality-ui.js?v=16.0.0';
+import * as M from './model.js?v=16.0.0';
+import * as X from './expansion.js?v=16.0.0';
+import {ExpansionUI} from './expansion-ui.js?v=16.0.0';
+import {Connection,requestId} from './connection.js?v=16.0.0';
+import {Features,escapeHtml} from './features.js?v=16.0.0';
+import {World} from './world.js?v=16.0.0';
+import {TYPES,TROOPS,QUESTS,SAVE_KEY,loadState,capacity,armyCapacity,armySize,queueSize,hallLevel,freeBuilders,producerRate,productionCapacity,upgradeCost,canPlace,build,upgrade,train,advance,collect,claimQuest,enemyDef,createBattle,deploy,strike,stepBattle,settleBattle} from './model.js?v=16.0.0';
 
 installLandscape();
 
@@ -120,12 +120,12 @@ let battleStarting=false;
 async function startBattle(index,defender,extra={}){
  if(battleStarting)return;battleStarting=true;$('app').inert=true;
  try{closeModal();cancelPlacement();deselect();syncEpoch++;await world.journey(true);if(api.online){const r=await api.command({type:'battle-start',index,defender,...extra});applyResponse(r);}else{if((!extra.mode||extra.mode==='match')&&armySize(village().army)<1&&!Object.values(state.heroes).some(h=>h.level&&!h.finishAt&&!(h.recoverAt>Date.now()))){toast('Train your army before battle.',true);return;}const modeResult=extra.mode==='match'?{battle:R.createBotBattle(state)}:extra.mode?X.createModeBattle(state,extra.mode):null;if(modeResult?.error)throw Error(modeResult.error);battle=modeResult?.battle||createBattle(state,index);battle.id=requestId();battleId=battle.id;worldSync(true);}
- selectedTroop=Object.keys(TROOPS).find(k=>battle.remaining[k]>0)||'guardian';spellMode=false;world.recenter();if((battle.bounds||8.7)>10)world.setZoom(.85);showBattleHUD();renderDeploy();sound('build');toast('Scout the defenses. Deploy outside red footprints or on green cleared tiles.');
+ selectedTroop=Object.keys(TROOPS).find(k=>battle.remaining[k]>0)||'guardian';spellMode=false;world.recenter();if((battle.bounds||8.7)>10)world.setZoom(.85);showBattleHUD();renderDeploy();sound('build');toast('Scout the defenses. Deploy on any open ground.');
  }catch(e){toast(e.message,true);}finally{try{await world.journey(false);}finally{battleStarting=false;$('app').inert=false;}}
 }
 function renderDeploy(){
  if(!battle)return;$('deploy-cards').innerHTML=Object.entries(TROOPS).filter(([k])=>(battle.remaining[k]||0)+(battle.deployed[k]||0)>0).map(([type,d])=>`<button class="deploy-card ${selectedTroop===type&&!spellMode?'selected':''}" data-action="troop" data-type="${type}" aria-label="Deploy ${d.name}, ${battle.remaining[type]||0} remaining" ${!(battle.remaining[type]>0)?'disabled':''}><b>${battle.remaining[type]||0}</b>${modelPortrait('troop',type,X.wallet(state,battle).research?.[type]||1,'deploy-model')}<span>${d.name}</span></button>`).join('')+(features?.heroCards(battle,selectedTroop)||'')+(extensions?.siegeCards(battle,selectedTroop)||'');icons();
- const troop=TROOPS[selectedTroop]||M.HEROES[selectedTroop]||X.SIEGE[selectedTroop];$('deploy-instruction').textContent=spellMode?'Tap the battlefield to cast '+M.SPELLS[selectedSpell].name:troop?'Tap outside red footprints or on a green cleared tile '+troop.name:'Your army is fighting.';
+ const troop=TROOPS[selectedTroop]||M.HEROES[selectedTroop]||X.SIEGE[selectedTroop];$('deploy-instruction').textContent=spellMode?'Tap the battlefield to cast '+M.SPELLS[selectedSpell].name:troop?'Tap any open ground to deploy '+troop.name:'Your army is fighting.';
  $('spell-count').textContent=Object.values(battle.spellStock||{}).reduce((a,b)=>a+b,0)+' spells';$('spell-button').querySelector('strong').textContent='Spells';
 }
 function finishBattle(){

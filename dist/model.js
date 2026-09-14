@@ -1,8 +1,8 @@
-import {COUNTRY_CODES,FLAG_COST} from './flags.js?v=14.0.0';
-import {EXTRA_HEROES,unlockedLand,landContains} from './content.js?v=14.0.0';
-import * as R from './raids.js?v=14.0.0';
-import * as Q from './quality.js?v=14.0.0';
-import * as X from './expansion.js?v=14.0.0';
+import {COUNTRY_CODES,FLAG_COST} from './flags.js?v=16.0.0';
+import {EXTRA_HEROES,unlockedLand,landContains} from './content.js?v=16.0.0';
+import * as R from './raids.js?v=16.0.0';
+import * as Q from './quality.js?v=16.0.0';
+import * as X from './expansion.js?v=16.0.0';
 export const SAVE_KEY = 'emberfall.kingdom.v1';
 export const TYPES = {
   hall: {name:'Town Hall',icon:'castle',desc:'The heart of your village. Upgrade to unlock stronger buildings and a larger army.',gold:0,elixir:0,size:3.7,hp:1600,max:1,time:30},
@@ -102,7 +102,7 @@ export function advanceProgression(s,now,events=[]){
 
 }
 export function deployHero(s,battle,type,x,z,now=Date.now()){
- const root=s;s=X.wallet(s,battle);const level=battle.heroStock?.[type],def=HEROES[type];if(!level||!Object.hasOwn(HEROES,type)||battle.ended)return {error:'Hero is not ready.'};if(!canDeploy(battle,x,z))return {error:'Deploy outside standing buildings or inside a cleared area.'};
+ const root=s;s=X.wallet(s,battle);const level=battle.heroStock?.[type],def=HEROES[type];if(!level||!Object.hasOwn(HEROES,type)||battle.ended)return {error:'Hero is not ready.'};if(!canDeploy(battle,x,z))return {error:'Choose an open spot away from standing buildings.'};
  const stats=X.heroStats(s,type,level),u={id:'u'+battle.units.length,type,hero:true,level,x,z,hp:stats.hp,maxHp:stats.hp,damage:stats.damage,speed:stats.speed,range:stats.range,regen:stats.regen,freeze:stats.freeze,wardPower:stats.ward,cooldown:0,phase:0,abilityUsed:false};battle.units.push(u);X.addPet(root,battle,u);battle.heroStock[type]=0;battle.started=true;s.heroes[type].recoverAt=now+180000;return {unit:u};
 }
 export function heroAbility(battle,type){const u=battle.units.find(u=>u.hero&&u.type===type&&u.hp>0&&!u.abilityUsed);if(!u||battle.ended)return {error:'Deploy a living hero before using this ability.'};u.abilityUsed=true;X.extraAbility(battle,u);const ability=HEROES[type].ability||({champion:'shield',prince:'freeze',queen:'volley',warden:'heal'}[type]);if(ability==='shield'){const targets=battle.buildings.filter(b=>b.hp>0&&DEFENSES[b.type]).sort((a,b)=>Math.hypot(a.x-u.x,a.z-u.z)-Math.hypot(b.x-u.x,b.z-u.z)).slice(0,4);for(const b of targets)b.hp=Math.max(0,b.hp-u.damage*3);}else if(ability==='freeze'||ability==='burst'){for(const b of battle.buildings)if(Math.hypot(b.x-u.x,b.z-u.z)<7){b.hp=Math.max(0,b.hp-u.damage*2);if(ability==='freeze')b.frozen=8;}}else if(ability==='volley'){for(const b of battle.buildings)if(DEFENSES[b.type])b.hp=Math.max(0,b.hp-260);}else if(ability==='heal'){for(const a of battle.units)if(a.hp>0)a.hp=Math.min(a.maxHp,a.hp+a.maxHp*.5);}else{for(const a of battle.units)if(a.hp>0&&Math.hypot(a.x-u.x,a.z-u.z)<5){a.hp=Math.min(a.maxHp,a.hp+250);a.rage=10;}}return {ok:true};}
@@ -257,13 +257,13 @@ export function canDeploy(battle,x,z){
  if(!Number.isFinite(x)||!Number.isFinite(z)||battle.ended)return false;
  const regions=battle.land||[{x1:-(battle.bounds||8.7),x2:battle.bounds||8.7,z1:-(battle.bounds||8.7),z2:battle.bounds||8.7}];
  if(!regions.some(r=>x>=r.x1-4.8&&x<=r.x2+4.8&&z>=r.z1-4.8&&z<=r.z2+4.8))return false;
- if(battle.buildings.some(b=>b.hp>0&&Math.abs(b.x-x)<TYPES[b.type].size/2+1&&Math.abs(b.z-z)<TYPES[b.type].size/2+1))return false;
- return !landContains(regions,x,z)||battle.buildings.some(b=>b.hp<=0&&Math.abs(b.x-x)<=TYPES[b.type].size/2+1&&Math.abs(b.z-z)<=TYPES[b.type].size/2+1);
+ if(battle.buildings.some(b=>b.hp>0&&Math.abs(b.x-x)<TYPES[b.type].size/2+.2&&Math.abs(b.z-z)<TYPES[b.type].size/2+.2))return false;
+ return true;
 }
 export function deploy(s,battle,type,x,z){
   s=X.wallet(s,battle);
   if(battle.ended||!Object.hasOwn(TROOPS,type)||!(battle.remaining[type]>0))return {error:'No troops of this type remaining.'};
-  if(!canDeploy(battle,x,z))return {error:'Deploy outside standing buildings or inside a cleared area.'};
+  if(!canDeploy(battle,x,z))return {error:'Choose an open spot away from standing buildings.'};
   const def=TROOPS[type],boost=1+((s.research?.[type]||1)-1)*.18;
   const unit={id:'u'+battle.units.length,type,level:s.research?.[type]||1,x,z,hp:def.hp*boost,maxHp:def.hp*boost,damage:def.damage*boost,cooldown:Math.random()*.3,phase:Math.random()*6.28};
   battle.units.push(unit);battle.remaining[type]--;battle.deployed[type]=(battle.deployed[type]||0)+1;s.army[type]--;battle.started=true;
@@ -276,7 +276,7 @@ export function stepBattle(battle,dt,onEvent=()=>{}){
   battle.elapsed+=dt;tickEffects(battle,dt);X.combatTick(battle,dt);const alive=()=>battle.buildings.filter(b=>b.hp>0&&b.type!=='bomb');
   for(const u of battle.units){
     if(u.hp<=0||u.pet&&X.PETS[u.type].heal)continue;const base=unitDefinition(u),def={...base,speed:u.speed||base.speed,range:u.range||base.range};if(def.heal){const allies=battle.units.filter(a=>a!==u&&a.hp>0&&a.hp<a.maxHp);u.cooldown=Math.max(0,(u.cooldown||0)-dt);if(allies.length){const t=allies.reduce((a,b)=>Math.hypot(a.x-u.x,a.z-u.z)<Math.hypot(b.x-u.x,b.z-u.z)?a:b),dx=t.x-u.x,dz=t.z-u.z,d=Math.hypot(dx,dz);u.facing=Math.atan2(dx,dz);u.moving=d>def.range;if(u.moving){const step=Math.min(def.speed*dt,d-def.range);u.x+=dx/d*step;u.z+=dz/d*step;}else if(u.cooldown<=0){t.hp=Math.min(t.maxHp,t.hp+def.heal*(1+((u.level||1)-1)*.18));u.cooldown=def.rate;u.swing=.24;}}else u.moving=false;continue;}const candidates=alive();if(!candidates.length)break;
-    let targets=def.target==='defense'||u.type==='giant'?candidates.filter(b=>defenseStats(b)):candidates.filter(b=>b.type!=='wall');if(!targets.length)targets=candidates;
+    let targets=def.target==='defense'||u.type==='giant'?candidates.filter(b=>defenseStats(b)):candidates.filter(b=>b.type!=='wall');if(!targets.length)targets=candidates.filter(b=>b.type!=='wall');if(!targets.length)targets=candidates;
     let target=targets.reduce((a,b)=>Math.hypot(a.x-u.x,a.z-u.z)<Math.hypot(b.x-u.x,b.z-u.z)?a:b);
     if(!def.flying){const wall=candidates.filter(b=>b.type==='wall'&&segmentNear(u,target,b,.9)).sort((a,b)=>Math.hypot(a.x-u.x,a.z-u.z)-Math.hypot(b.x-u.x,b.z-u.z))[0];if(wall)target=wall;}
     const dx=target.x-u.x,dz=target.z-u.z,d=Math.hypot(dx,dz),stop=def.range+TYPES[target.type].size*.4;

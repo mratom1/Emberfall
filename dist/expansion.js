@@ -1,5 +1,5 @@
-import {EXTRA_HEROES} from './content.js?v=14.0.0';
-import * as M from './model.js?v=14.0.0';
+import {EXTRA_HEROES} from './content.js?v=16.0.0';
+import * as M from './model.js?v=16.0.0';
 
 export const EQUIPMENT={
  ironheart:{name:'Ironheart',icon:'shield',desc:'More hit points.',hp:.08},
@@ -104,7 +104,7 @@ export function createModeBattle(s,mode,now=Date.now()){
 }
 export function addPet(s,b,hero){const p=b.petStock?.[hero.type];if(!p)return;const d=PETS[p.type],boost=1+(p.level-1)*.15;b.units.push({id:'u'+b.units.length,type:p.type,pet:true,owner:hero.id,x:hero.x+1,z:hero.z,hp:d.hp*boost,maxHp:d.hp*boost,damage:d.damage*boost,cooldown:0,phase:0});delete b.petStock[hero.type];}
 export function deploySiege(s,b,type,x,z){
- if(!Object.hasOwn(SIEGE,type)||!b.siegeStock?.[type]||b.ended||b.siegeDeployed)return error('One siege machine can deploy per battle.');if(!M.canDeploy(b,x,z))return error('Deploy outside standing buildings or inside a cleared area.');
+ if(!Object.hasOwn(SIEGE,type)||!b.siegeStock?.[type]||b.ended||b.siegeDeployed)return error('One siege machine can deploy per battle.');if(!M.canDeploy(b,x,z))return error('Choose an open spot away from standing buildings.');
  const d=SIEGE[type],u={id:'u'+b.units.length,type,siege:true,x,z,hp:d.hp,maxHp:d.hp,damage:d.damage,cooldown:0,phase:0};b.units.push(u);b.siegeStock[type]--;wallet(s,b).expansion.siege[type]--;b.siegeDeployed=true;b.started=true;return {unit:u};
 }
 export function combatTick(b,dt){

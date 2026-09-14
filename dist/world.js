@@ -1,11 +1,11 @@
-import {villageNavigator,advanceRoute} from './village-paths.js?v=14.0.0';
-import {LAND_REGIONS,unlockedLand,landContains} from './content.js?v=14.0.0';
-import {flagCanvas} from './flags.js?v=14.0.0';
-import {appearance} from './raids.js?v=14.0.0';
-import {gamePoint,gameDelta,isRotated} from './viewport.js?v=14.0.0';
-import {GRAPHICS, graphicsProfile, renderScale} from './graphics.js?v=14.0.0';
-import * as THREE from './assets/three.module.js?v=14.0.0';
-import {TYPES,TROOPS,HEROES,canPlace,canDeploy,unitDefinition} from './model.js?v=14.0.0';
+import {villageNavigator,advanceRoute} from './village-paths.js?v=16.0.0';
+import {LAND_REGIONS,unlockedLand,landContains} from './content.js?v=16.0.0';
+import {flagCanvas} from './flags.js?v=16.0.0';
+import {appearance} from './raids.js?v=16.0.0';
+import {gamePoint,gameDelta,isRotated} from './viewport.js?v=16.0.0';
+import {GRAPHICS, graphicsProfile, renderScale} from './graphics.js?v=16.0.0';
+import * as THREE from './assets/three.module.js?v=16.0.0';
+import {TYPES,TROOPS,HEROES,canPlace,canDeploy,unitDefinition} from './model.js?v=16.0.0';
 
 const C={grass:0x75a44e,grassLight:0x87b05a,grassDark:0x5c8c3f,dirt:0xc8b489,stone:0xc5c0a2,stoneDark:0x827f69,wall:0xd6c5a0,wood:0x72503c,timber:0x503e30,roof:0x984e3f,roofLight:0xbb6847,gold:0xe5bd57,iron:0x485452,leaf:0x407643,pine:0x335d3e,water:0x68a9a3};
 const materials=new Map();
@@ -219,7 +219,30 @@ function humanBody(body,type,color,width=.57){
  const collar=mesh(body,new THREE.TorusGeometry(.105,.027,8,20),trim,0,1.275,0);collar.rotation.x=Math.PI/2;mesh(body,new THREE.OctahedronGeometry(.05),0x8acdd0,0,1.14,.225);
  for(let n=0;n<4;n++){const panel=box(body,width*.8,.085,.055,n%2?color:trim,0,.88-n*.075,.187);panel.rotation.x=-.08;}
 
+ // A readable jaw, ears, lashes and hairstyle make faces hold up in the large roster portraits.
+ oval(0,1.405,.04,female?.145:.166,.115,.145,skin);
+ for(const side of [-1,1]){oval(side*.176,1.475,.005,.035,.058,.028,skin);if(female){const lash=box(body,.070,.012,.014,0x302a28,side*.064,1.512,.178);lash.rotation.z=side*.10;}}
+ if(seed%4===1)for(let n=0;n<5;n++){const curl=oval((n-2)*.075,1.66-Math.abs(n-2)*.018,-.06,.07,.11,.13,hair);curl.rotation.z=(n-2)*.18;}
+ if(seed%4===2&&!female)for(const side of [-1,1]){const tail=oval(side*.13,1.49,-.18,.07,.31,.075,hair);tail.rotation.z=side*.22;}
+ if(seed%4===3&&female)for(let n=0;n<5;n++){const lock=oval((n-2)*.08,1.57-n*.10,-.15,.055,.13,.065,hair);lock.rotation.z=(n-2)*.1;}
+
  return {skin,oval};
+}
+
+function characterIdentity(body,type,def,hero=false){
+ const seed=[...type].reduce((n,c)=>n+c.charCodeAt(0),0),accent=new THREE.Color(def.color).lerp(new THREE.Color(0xf0c36d),.28).getHex(),dark=new THREE.Color(def.color).multiplyScalar(.55).getHex();
+ const heavy=def.role==='tank'||['giant','breaker','colossus','sentinel','hammerguard','berserker','guardian'].includes(type),mystic=['mage','healer','frostweaver','stormcaller','oracle','pyromancer','beastmaster','warden','regent'].includes(type),stealth=['raider','assassin','duelist','wraith'].includes(type);
+ if(heavy){for(const side of [-1,1]){const pauldron=mesh(body,new THREE.SphereGeometry(1,18,12),accent,side*.38,1.18,-.01);pauldron.scale.set(.22,.14,.24);for(let n=0;n<3;n++)box(body,.035,.18,.035,dark,side*(.30+n*.065),1.32+n*.025,-.02);}box(body,.47,.49,.055,dark,0,1.02,-.235);for(const x of [-.18,0,.18])box(body,.10,.32,.045,accent,x,.84,.225);}
+ if(mystic){const mantle=mesh(body,new THREE.TorusGeometry(.31,.065,8,28,Math.PI),accent,0,1.22,-.04);mantle.rotation.x=Math.PI/2;mantle.rotation.z=Math.PI/2;for(let n=0;n<3;n++){const crystal=mesh(body,new THREE.OctahedronGeometry(.055+n*.012),n===1?0xb5eff2:accent,(n-1)*.17,1.7+Math.abs(n-1)*.05,-.02);crystal.rotation.y=n;}}
+ if(stealth){const hood=mesh(body,new THREE.SphereGeometry(1,20,14),dark,0,1.55,-.04);hood.scale.set(.22,.25,.19);box(body,.30,.075,.025,0x20272b,0,1.47,.18);for(const side of [-1,1]){const knife=cone(body,.055,.30,0xc9d7d7,side*.22,.94,-.25,4);knife.rotation.z=side*.35;}}
+ if(!heavy&&!mystic&&!stealth)for(const side of [-1,1]){box(body,.15,.31,.11,accent,side*.31,1.11,.02);cone(body,.055,.22,accent,side*.31,1.38,.02,5);}
+ const mark=mesh(body,seed%2?new THREE.OctahedronGeometry(.07):new THREE.TetrahedronGeometry(.075),accent,0,1.08,.255);mark.rotation.z=Math.PI/4;
+ const crownStyle=seed%4;
+ if(hero||crownStyle===0){for(let n=-2;n<=2;n++)cone(body,.045+(n===0?.012:0),.18+Math.abs(n)*.025,accent,n*.085,1.79-Math.abs(n)*.015,0,5);}
+ else if(crownStyle===1){const band=cyl(body,.205,.205,.07,accent,0,1.67,0,18);band.scale.z=.9;cone(body,.07,.27,dark,0,1.87,-.02,6);}
+ else if(crownStyle===2)for(const side of [-1,1]){const horn=cone(body,.07,.34,accent,side*.17,1.76,-.02,7);horn.rotation.z=side*.45;}
+ else {const brim=cyl(body,.27,.27,.045,dark,0,1.68,0,18);brim.scale.z=.78;cone(body,.21,.34,dark,0,1.87,-.03,18);}
+ if(hero){for(const side of [-1,1]){const clasp=mesh(body,new THREE.OctahedronGeometry(.055),0xf3d27c,side*.25,1.27,.18);clasp.rotation.z=Math.PI/4;}const sash=box(body,.10,.72,.035,accent,-.10,.94,.235);sash.rotation.z=-.22;}
 }
 function troopBody(body,type,def){
  const color=def.color,metal=0xc1cdd0,gold=0xd4ac62,round=(r,c,x,y,z)=>mesh(body,new THREE.SphereGeometry(r,16,12),c,x,y,z);
@@ -232,7 +255,7 @@ function troopBody(body,type,def){
  if(type==='colossus'){
  box(body,.8,.86,.53,color,0,.95,0);for(const side of [-1,1]){cyl(body,.16,.2,.6,metal,side*.23,.32,0,10);box(body,.3,.18,.45,0x39494a,side*.23,.1,.1);round(.23,gold,side*.52,1.14,0);cyl(body,.18,.20,.6,color,side*.58,.82,.04,10);box(body,.31,.25,.34,metal,side*.58,.52,.1);}box(body,.52,.39,.4,color,0,1.6,0);box(body,.38,.08,.03,0x81e0de,0,1.62,.22);cyl(body,.16,.16,.08,0x84e6dc,0,1,.3,16).rotation.x=Math.PI/2;for(const side of [-1,1])cyl(body,.07,.08,.5,0x525e60,side*.3,1.6,-.25,8);return;
  }
- humanBody(body,type,color,type==='giant'?.88:type==='breaker'||type==='hammerguard'?.73:.55);
+ humanBody(body,type,color,type==='giant'?.88:type==='breaker'||type==='hammerguard'?.73:.55);characterIdentity(body,type,def,false);
  if(type==='giant'){for(const side of [-1,1]){rock(body,.24,0x9d9989,side*.48,1.13,0);rock(body,.18,0xb2ab91,side*.43,.8,.13);}for(let j=0;j<3;j++)box(body,.11,.3,.1,0xa0a895,(j-1)*.15,1.02,.23);return;}
  const weapon=def.weapon||({guardian:'sword',ranger:'bow',raider:'daggers',mage:'fire',breaker:'hammer'}[type]);
  if(['bow','fire','hammer','spear','axes','shield','daggers','ice','orb','wings','rapier'].includes(weapon))heroWeapon(body,{weapon},color,gold,round);
@@ -256,7 +279,7 @@ function heroBody(body,type,level=1){
     cyl(body,.055,.065,1.42,0x72503c,.68,1.02,.11,8);box(body,.67,.43,.42,0x466763,.68,1.79,.11);box(body,.72,.08,.47,gold,.68,1.68,.11);return;
   }
   const profile=HEROES[type],width=type==='king'?.73:profile.role==='tank'?.82:type==='queen'||profile.female?.49:.58;
-  humanBody(body,type,armor,width);
+  humanBody(body,type,armor,width);characterIdentity(body,type,profile,true);
   const cape=cone(body,width*.7,.95,type==='king'?0x842f24:type==='queen'?0x513769:0x343750,0,.79,-.25,12);cape.scale.z=.3;cape.rotation.x=-.15;
   if(type==='king'||type==='warden'){cone(body,.13,.26,type==='king'?0x8a4025:0xcad1cf,0,1.30,.13,9).rotation.z=Math.PI;}
   if(profile.weapon){heroWeapon(body,profile,armor,gold,round);}
@@ -490,7 +513,7 @@ export class World{
   }
 
   paintPortrait(canvas,type,level=1){const key=type+':'+level;
-    try{this.portraits??=new Map();if(!this.portraits.has(key)){this.portraitRenderer??=new THREE.WebGLRenderer({alpha:true,antialias:true,preserveDrawingBuffer:true});const renderer=this.portraitRenderer;renderer.setSize(180,210,false);renderer.setClearColor(0x000000,0);renderer.outputColorSpace=THREE.SRGBColorSpace;const scene=new THREE.Scene();scene.add(new THREE.HemisphereLight(0xfff7da,0x344b45,2.7));const light=new THREE.DirectionalLight(0xffffff,3);light.position.set(3,5,4);scene.add(light);const model=makeUnit(type,false,{level});model.rotation.y=.45;scene.add(model);const camera=new THREE.PerspectiveCamera(33,180/210,.1,50);camera.position.set(3,2.9,5);camera.lookAt(0,1,0);renderer.render(scene,camera);const cached=document.createElement('canvas');cached.width=180;cached.height=210;cached.getContext('2d').drawImage(renderer.domElement,0,0);this.portraits.set(key,cached);if(this.portraits.size>24)this.portraits.delete(this.portraits.keys().next().value);disposeGroup(scene);}canvas.getContext('2d').drawImage(this.portraits.get(key),0,0,canvas.width,canvas.height);}catch{canvas.setAttribute('aria-label',type+' character');}
+    try{this.portraits??=new Map();if(!this.portraits.has(key)){this.portraitRenderer??=new THREE.WebGLRenderer({alpha:true,antialias:true,preserveDrawingBuffer:true});const renderer=this.portraitRenderer;renderer.setSize(240,280,false);renderer.setClearColor(0x000000,0);renderer.outputColorSpace=THREE.SRGBColorSpace;const scene=new THREE.Scene();scene.add(new THREE.HemisphereLight(0xfff1cf,0x243c44,3.1));const keyLight=new THREE.DirectionalLight(0xffe1a6,3.8);keyLight.position.set(4,6,5);scene.add(keyLight);const rim=new THREE.DirectionalLight(0x8fd9ff,2.2);rim.position.set(-4,3,-4);scene.add(rim);const glow=mesh(scene,new THREE.CircleGeometry(1.05,40),0x2c5f54,0,.01,0);glow.rotation.x=-Math.PI/2;const model=makeUnit(type,false,{level});model.rotation.y=.34;scene.add(model);const camera=new THREE.PerspectiveCamera(31,240/280,.1,50);camera.position.set(3.15,2.75,5.3);camera.lookAt(0,1.02,0);renderer.render(scene,camera);const cached=document.createElement('canvas');cached.width=240;cached.height=280;cached.getContext('2d').drawImage(renderer.domElement,0,0);this.portraits.set(key,cached);if(this.portraits.size>48)this.portraits.delete(this.portraits.keys().next().value);disposeGroup(scene);}canvas.getContext('2d').drawImage(this.portraits.get(key),0,0,canvas.width,canvas.height);}catch{canvas.setAttribute('aria-label',type+' character');}
   }
   setObstacles(obstacles){const sig=JSON.stringify(obstacles.map(o=>[o.id,!!o.finishAt]));if(sig===this.obstacleSig)return;this.obstacleSig=sig;disposeGroup(this.obstacleGroup);this.obstacleGroup.clear();this.obstacleMap.clear();for(const o of obstacles){const g=new THREE.Group();if(o.type==='tree')tree(g,0,0,o.finishAt?.65:.75,.2,seeded(o.x*173+1301));else if(o.type==='gem-box'){box(g,1.02,.55,.88,0x6e4d35,0,.35,0);for(const x of [-.36,.36])box(g,.10,.65,.94,0xefca72,x,.38,0);box(g,1.08,.15,.93,0xb28b4c,0,.68,0);for(let n=0;n<5;n++)mesh(g,new THREE.OctahedronGeometry(.20),0x86f2ad,(n-2)*.17,.84+(n%2)*.19,0).scale.y=1.5;}else{rock(g,.75,0x929b85,0,.4,0);rock(g,.42,C.stone,.45,.23,.26);}const m=merged(g);m.position.set(o.x,0,o.z);m.userData.obstacleId=o.id;this.obstacleGroup.add(m);this.obstacleMap.set(o.id,m);}}
   setBattleBounds(bounds=8.7){const s=bounds/8.7;this.battleBorder.scale.set(s,1,s);}
@@ -528,7 +551,7 @@ export class World{
   }
   updateDeploymentZones(battle){
     const sig=JSON.stringify([battle.id,battle.land,battle.bounds,battle.buildings.map(b=>[b.id,b.type,b.x,b.z,b.hp>0])]);if(this.deploymentSignature===sig)return;this.deploymentSignature=sig;this.deploymentZones??=new THREE.Group();if(!this.deploymentZones.parent)this.scene.add(this.deploymentZones);disposeGroup(this.deploymentZones);this.deploymentZones.clear();this.deploymentZones.visible=true;this.battleBorder.visible=false;
-    const lines=[];for(const b of battle.buildings.filter(b=>b.hp>0)){const r=TYPES[b.type].size/2+1,corners=[[b.x-r,b.z-r],[b.x+r,b.z-r],[b.x+r,b.z+r],[b.x-r,b.z+r]];for(let i=0;i<4;i++)lines.push(...[...corners[i].slice(0,1),.07,corners[i][1]],corners[(i+1)%4][0],.07,corners[(i+1)%4][1]);}
+    const lines=[];for(const b of battle.buildings.filter(b=>b.hp>0)){const r=TYPES[b.type].size/2+.2,corners=[[b.x-r,b.z-r],[b.x+r,b.z-r],[b.x+r,b.z+r],[b.x-r,b.z+r]];for(let i=0;i<4;i++)lines.push(...[...corners[i].slice(0,1),.07,corners[i][1]],corners[(i+1)%4][0],.07,corners[(i+1)%4][1]);}
     const outline=new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position',new THREE.Float32BufferAttribute(lines,3)),new THREE.LineBasicMaterial({color:0xf17660,transparent:true,opacity:.55}));this.deploymentZones.add(outline);
     const regions=battle.land||[{x1:-battle.bounds,x2:battle.bounds,z1:-battle.bounds,z2:battle.bounds}],vertices=[];
     for(const r of regions)for(let x=Math.ceil(r.x1);x<r.x2;x++)for(let z=Math.ceil(r.z1);z<r.z2;z++)if(canDeploy(battle,x,z)){const a=.38;vertices.push(x-a,.065,z-a,x+a,.065,z+a,x+a,.065,z-a,x-a,.065,z-a,x-a,.065,z+a,x+a,.065,z+a);}

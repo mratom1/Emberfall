@@ -1,0 +1,92 @@
+name: Blender Guardian Pilot
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - blender/guardian-pilot
+    paths:
+      - 'scripts/blender/**'
+      - '.github/workflows/blender-guardian.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  generate-guardian:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download Blender 5.0.0
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p .blender
+          if [ ! -x .blender/blender-5.0.0-linux-x64/blender ]; then
+            curl -fsSL --retry 3 \
+              https://download.blender.org/release/Blender5.0/blender-5.0.0-linux-x64.tar.xz \
+              -o /tmp/blender.tar.xz
+            tar -xJf /tmp/blender.tar.xz -C .blender
+          fi
+          .blender/blender-5.0.0-linux-x64/blender --version
+
+      - name: Generate Guardian levels 1 through 15
+        shell: bash
+        run: |
+          set -euxo pipefail
+          .blender/blender-5.0.0-linux-x64/blender \
+            --background \
+            --factory-startup \
+            --python scripts/blender/generators/generate_guardian.py
+
+      - name: Validate generated assets
+        shell: bash
+        run: |
+          set -euxo pipefail
+          for level in $(seq 1 15); do
+            test -s "assets/characters/troops/guardian/source/guardian_l${level}.blend"
+            test -s "assets/characters/troops/guardian/exports/guardian_l${level}.glb"
+          done
+          test -s assets/characters/troops/guardian/manifest.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path('assets/characters/troops/guardian/manifest.json')
+          data = json.loads(p.read_text())
+          assert data['level_count'] == 15
+          assert len(data['levels']) == 15
+          changes = [x['visual_change'] for x in data['levels']]
+          assert len(set(changes)) == 15
+          for i, entry in enumerate(data['levels'], 1):
+              assert entry['level'] == i
+              assert entry['triangles'] > 0
+          print(json.dumps(data, indent=2))
+          PY
+
+      - name: Upload Guardian artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: guardian-blender-levels-1-15
+          path: assets/characters/troops/guardian/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Commit generated model assets
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/characters/troops/guardian/
+          if git diff --cached --quiet; then
+            echo "Generated assets are already up to date."
+          else
+            git commit -m "Generate Guardian levels 1-15 [skip ci]"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi

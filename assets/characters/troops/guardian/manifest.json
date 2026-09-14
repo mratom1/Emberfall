@@ -1,0 +1,115 @@
+{
+  "unit": "guardian",
+  "display_name": "Guardian",
+  "generator": "scripts/blender/generators/generate_guardian.py",
+  "blender_target": "5.0.x",
+  "level_count": 15,
+  "design_rule": "Every level adds geometry or silhouette changes; no level is a color-only upgrade.",
+  "levels": [
+    {
+      "level": 1,
+      "blend": "assets/characters/troops/guardian/source/guardian_l1.blend",
+      "glb": "assets/characters/troops/guardian/exports/guardian_l1.glb",
+      "triangles": 768,
+      "visual_change": "Recruit kit: leather underlayer, iron chest plate, short sword and compact shield."
+    },
+    {
+      "level": 2,
+      "blend": "assets/characters/troops/guardian/source/guardian_l2.blend",
+      "glb": "assets/characters/troops/guardian/exports/guardian_l2.glb",
+      "triangles": 944,
+      "visual_change": "Adds iron shin caps, reinforced belt and shield rim for a sturdier frontline silhouette."
+    },
+    {
+      "level": 3,
+      "blend": "assets/characters/troops/guardian/source/guardian_l3.blend",
+      "glb": "assets/characters/troops/guardian/exports/guardian_l3.glb",
+      "triangles": 1076,
+      "visual_change": "Adds layered chest armor and helmet cheek guards; sword grows slightly longer."
+    },
+    {
+      "level": 4,
+      "blend": "assets/characters/troops/guardian/source/guardian_l4.blend",
+      "glb": "assets/characters/troops/guardian/exports/guardian_l4.glb",
+      "triangles": 1164,
+      "visual_change": "Adds first heavy pauldron and a reinforced sword guard."
+    },
+    {
+      "level": 5,
+      "blend": "assets/characters/troops/guardian/source/guardian_l5.blend",
+      "glb": "assets/characters/troops/guardian/exports/guardian_l5.glb",
+      "triangles": 1296,
+      "visual_change": "Adds matching pauldrons and twin waist plates, widening the armored silhouette."
+    },
+    {
+      "level": 6,
+      "blend": "assets/characters/troops/guardian/source/guardian_l6.blend",
+      "glb": "assets/characters/troops/guardian/exports/guardian_l6.glb",
+      "triangles": 1472,
+      "visual_change": "Adds metal bracers, shield boss and a reinforced blade spine."
+    },
+    {
+      "level": 7,
+      "blend": "assets/characters/troops/guardian/source/guardian_l7.blend",
+      "glb": "assets/characters/troops/guardian/exports/guardian_l7.glb",
+      "triangles": 1604,
+      "visual_change": "Adds helmet crest and knee guards, making the upper silhouette visibly taller."
+    },
+    {
+      "level": 8,
+      "blend": "assets/characters/troops/guardian/source/guardian_l8.blend",
+      "glb": "assets/characters/troops/guardian/exports/guardian_l8.glb",
+      "triangles": 1736,
+      "visual_change": "Adds armored boots and a short rear mantle/back cloth."
+    },
+    {
+      "level": 9,
+      "blend": "assets/characters/troops/guardian/source/guardian_l9.blend",
+      "glb": "assets/characters/troops/guardian/exports/guardian_l9.glb",
+      "triangles": 1888,
+      "visual_change": "Adds hanging tassets, raised collar and shield side fins."
+    },
+    {
+      "level": 10,
+      "blend": "assets/characters/troops/guardian/source/guardian_l10.blend",
+      "glb": "assets/characters/troops/guardian/exports/guardian_l10.glb",
+      "triangles": 1988,
+      "visual_change": "Veteran tier: dark plate, shoulder spikes, ember chest core and larger sword/shield."
+    },
+    {
+      "level": 11,
+      "blend": "assets/characters/troops/guardian/source/guardian_l11.blend",
+      "glb": "assets/characters/troops/guardian/exports/guardian_l11.glb",
+      "triangles": 2164,
+      "visual_change": "Adds plated upper arms and segmented chest bands."
+    },
+    {
+      "level": 12,
+      "blend": "assets/characters/troops/guardian/source/guardian_l12.blend",
+      "glb": "assets/characters/troops/guardian/exports/guardian_l12.glb",
+      "triangles": 2342,
+      "visual_change": "Adds tower-shield crown plates and a stronger crossguard/pommel assembly."
+    },
+    {
+      "level": 13,
+      "blend": "assets/characters/troops/guardian/source/guardian_l13.blend",
+      "glb": "assets/characters/troops/guardian/exports/guardian_l13.glb",
+      "triangles": 2430,
+      "visual_change": "Adds horned helmet crown, back plate and shin fins for an elite silhouette."
+    },
+    {
+      "level": 14,
+      "blend": "assets/characters/troops/guardian/source/guardian_l14.blend",
+      "glb": "assets/characters/troops/guardian/exports/guardian_l14.glb",
+      "triangles": 2582,
+      "visual_change": "Adds ember blade-edge strips, extended shield wings and a crown crest."
+    },
+    {
+      "level": 15,
+      "blend": "assets/characters/troops/guardian/source/guardian_l15.blend",
+      "glb": "assets/characters/troops/guardian/exports/guardian_l15.glb",
+      "triangles": 2814,
+      "visual_change": "Ascendant Guardian: full mantle, layered crown, ember core, oversized shield and master sword details."
+    }
+  ]
+}

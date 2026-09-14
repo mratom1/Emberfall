@@ -17,6 +17,24 @@ function cyl(p,rt,rb,h,c,x=0,y=0,z=0,n=8){return mesh(p,new THREE.CylinderGeomet
 function rock(p,r,c,x,y,z){const m=mesh(p,new THREE.DodecahedronGeometry(r,0),c,x,y,z);m.rotation.set(x*.4,z*.7,x*.1);return m;}
 function sphere(p,r,c,x,y,z){return mesh(p,new THREE.IcosahedronGeometry(r,1),c,x,y,z);}
 function seeded(seed){return()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};}
+export const BIRD_SPECIES=['swift','dove','crane','eagle'];
+export function birdModel(species='swift',scale=1){
+  if(!BIRD_SPECIES.includes(species))species='swift';
+  const g=new THREE.Group(),colors={swift:[0x263b42,0x48636b],dove:[0xd8d4c5,0x8b958f],crane:[0xe7e1cf,0x343f42],eagle:[0x6c4b31,0xc59b55]},[bodyColor,wingColor]=colors[species];
+  const body=sphere(g,.22,bodyColor,0,0,0);body.scale.set(species==='crane'?.65:1,species==='eagle'?1.12:.82,species==='swift'?1.6:1.25);
+  const head=sphere(g,species==='eagle'?.14:.12,species==='eagle'?0xe8dfc7:bodyColor,0,.08,.28);head.scale.y=.9;
+  const beak=cone(g,species==='eagle'?.075:.052,species==='crane'?.28:.17,species==='eagle'?0xd6a543:0xb77842,0,.07,.45,5);beak.rotation.x=Math.PI/2;
+  if(species==='crane'){const neck=cyl(g,.045,.065,.48,bodyColor,0,.22,.25,7);neck.rotation.x=-.28;for(const x of [-.055,.055]){const leg=box(g,.028,.04,.48,0x8e673f,x,-.17,-.08);leg.rotation.x=-.25;}}
+  const left=new THREE.Group(),right=new THREE.Group(),span=species==='eagle'?.78:species==='dove'?.62:species==='crane'?.7:.58,depth=species==='swift'?.22:.34;
+  const l=box(left,span,.045,depth,wingColor,span*.46,0,0),rr=box(right,span,.045,depth,wingColor,-span*.46,0,0);l.rotation.y=species==='swift'?-.28:.08;rr.rotation.y=species==='swift'?.28:-.08;left.position.x=.08;right.position.x=-.08;g.add(left,right);
+  const tail=cone(g,species==='eagle'?.21:.14,species==='swift'?.42:.3,wingColor,0,0,-.34,species==='eagle'?5:3);tail.rotation.x=-Math.PI/2;
+  g.userData={species,wings:{left,right}};g.scale.setScalar(scale);g.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=false;}});return g;
+}
+function journeyCloudTexture(){
+  const width=128,height=64,data=new Uint8Array(width*height*4),lobes=[[.16,.6,.2],[.31,.42,.25],[.5,.52,.31],[.7,.4,.25],[.86,.59,.19],[.57,.7,.24]];
+  for(let y=0;y<height;y++)for(let x=0;x<width;x++){const u=x/(width-1),v=y/(height-1);let density=0;for(const [cx,cy,r]of lobes){const dx=(u-cx)*1.15,dy=v-cy;density=Math.max(density,Math.exp(-(dx*dx+dy*dy)/(r*r*.34)));}const edge=Math.min(1,u*10,(1-u)*10,v*9,(1-v)*9),alpha=Math.max(0,Math.min(255,Math.round((density-.08)*300*edge))),i=(y*width+x)*4;data[i]=235;data[i+1]=244;data[i+2]=241;data[i+3]=alpha;}
+  const texture=new THREE.DataTexture(data,width,height,THREE.RGBAFormat);texture.colorSpace=THREE.SRGBColorSpace;texture.minFilter=THREE.LinearFilter;texture.magFilter=THREE.LinearFilter;texture.generateMipmaps=false;texture.needsUpdate=true;return texture;
+}
 export function riverPoint(z){return {x:-18+Math.sin(z*.18)*2.2,z};}
 export function riverWidth(z){return 3.15+Math.sin(z*.115+.8)*.34+Math.sin(z*.047)*.22;}
 function riverRibbon(parent,z1,z2,segments,widthExtra,color,y){
@@ -439,7 +457,14 @@ export class World{
 
     const clouds=new THREE.Group();for(let i=0;i<44;i++){const angle=i/44*Math.PI*2,cloud=new THREE.Group(),x=-12+Math.cos(angle)*(94+r()*12),z=Math.sin(angle)*(78+r()*12);for(let j=0;j<7;j++){const puff=mesh(cloud,new THREE.SphereGeometry(1,12,8),0xe8efeb,x+(j-3)*2.7,9+r()*4,z+(r()-.5)*5);puff.scale.set(4+r()*3,1.6+r()*1.8,3+r()*3);}const m=merged(cloud);m.material.dispose();m.material=new THREE.MeshBasicMaterial({color:0xe5eeea,transparent:true,opacity:.65,depthWrite:false});m.castShadow=false;m.receiveShadow=false;m.userData.phase=i;clouds.add(m);}this.clouds=clouds;this.scene.add(clouds);
 
+    // Several lightweight flocks cross the valley. Count, species mix, height and routes change each session.
+    this.birds=new THREE.Group();const birdCount=(this.mobile?7:12)+Math.floor(Math.random()*(this.mobile?7:13)),speciesOffset=Math.floor(Math.random()*BIRD_SPECIES.length),flocks=[];
+    for(let i=0;i<Math.ceil(birdCount/4);i++)flocks.push({heading:Math.random()*Math.PI*2,phase:Math.random(),speed:.012+Math.random()*.012,altitude:7+Math.random()*7,originX:(Math.random()-.5)*18,originZ:(Math.random()-.5)*18});
+    for(let i=0;i<birdCount;i++){const flock=flocks[Math.floor(i/4)%flocks.length],species=BIRD_SPECIES[(i+speciesOffset)%BIRD_SPECIES.length],bird=birdModel(species,(species==='eagle'?1.08:.68)+Math.random()*.28);bird.userData.flight={...flock,phase:(flock.phase+(i%4)*.018)%1,lateral:(i%2?-1:1)*Math.ceil(i%4/2)*1.15,bob:Math.random()*6.28,flap:5.5+Math.random()*3};this.birds.add(bird);}
+    this.scene.add(this.birds);this.updateBirdVisibility();
+
   }
+  updateBirdVisibility(){if(!this.birds)return;const limit=this.quality==='ultra'?this.birds.children.length:this.quality==='smooth'?(this.mobile?5:8):(this.mobile?9:16);this.birds.children.forEach((bird,i)=>bird.visible=i<limit);}
   setTerritory(s,battle){
     this.landGroup??=new THREE.Group();if(!this.landGroup.parent)this.scene.add(this.landGroup);
     const combat=battle&&typeof battle==='object'?battle:null,open=combat?.land||unlockedLand(s);this.landGroup.visible=!s.realm&&(!battle||!!combat?.land);const signature=JSON.stringify([s.realm,open.map(r=>r.id),!!battle]);if(this.landSignature===signature)return;this.landSignature=signature;disposeGroup(this.landGroup);this.landGroup.clear();
@@ -535,11 +560,11 @@ export class World{
     if(!this.journeyGroup){const group=new THREE.Group();this.camera.add(group);this.scene.add(this.camera);this.journeyGroup=group;
       const mat=new THREE.MeshBasicMaterial({color:0xe5eeea,transparent:true,opacity:0,depthTest:false,depthWrite:false});
       const veil=new THREE.Mesh(new THREE.PlaneGeometry(1,1),mat);veil.position.z=-2;veil.renderOrder=10001;group.add(veil);
-      for(let i=0;i<18;i++){const puff=new THREE.Mesh(new THREE.SphereGeometry(1,16,12),mat.clone());puff.position.set((i%6-2.5)*.22,(Math.floor(i/6)-1)*.35,-1);puff.userData.side=i%2?1:-1;puff.renderOrder=10002;group.add(puff);}}
+      const cloudMap=journeyCloudTexture();for(let i=0;i<12;i++){const cloudMat=new THREE.MeshBasicMaterial({map:cloudMap,color:i%3?0xf1f6f3:0xdcebe7,transparent:true,opacity:0,depthTest:false,depthWrite:false,side:THREE.DoubleSide}),puff=new THREE.Mesh(new THREE.PlaneGeometry(1.9,1),cloudMat);puff.position.set((i%4-1.5)*.31,(Math.floor(i/4)-1)*.38,-1);puff.userData.side=i%2?1:-1;puff.userData.delay=(i%4)*.08;puff.renderOrder=10002+i;group.add(puff);}}
     const group=this.journeyGroup;group.visible=true;this.journeyActive=true;const start=performance.now();
     await new Promise(resolve=>{const step=()=>{const u=Math.min(1,(performance.now()-start)/duration),a=cover?u:1-u,w=this.camera.right-this.camera.left,h=this.camera.top-this.camera.bottom;
-      group.children[0].scale.set(w*1.1,h*1.1,1);group.children[0].material.opacity=a;
-      for(let i=1;i<group.children.length;i++){const puff=group.children[i];puff.position.x=((i%6-2.5)*.22+puff.userData.side*(1-a))*w;puff.position.y=(Math.floor((i-1)/6)-1)*h*.35;puff.scale.set(w*.24,h*.28,1);puff.material.opacity=a;}
+      group.children[0].scale.set(w*1.1,h*1.1,1);group.children[0].material.opacity=a*.94;
+      for(let i=1;i<group.children.length;i++){const puff=group.children[i],local=Math.max(0,Math.min(1,(a-puff.userData.delay)/(1-puff.userData.delay)));puff.position.x=((i%4-1.5)*.3+puff.userData.side*(1-local)*1.15)*w;puff.position.y=(Math.floor((i-1)/4)-1)*h*.38;puff.scale.set(w*.38,h*.42,1);puff.material.opacity=Math.min(1,local*1.25);}
       if(u<1)requestAnimationFrame(step);else resolve();};step();});
     if(!cover){group.visible=false;this.journeyActive=false;}
   }
@@ -618,6 +643,7 @@ export class World{
   }
   animate(dt,t){
     this.stepWorkers(dt,t);
+    for(const bird of this.birds?.children||[]){if(!bird.visible)continue;const f=bird.userData.flight,u=(f.phase+t*f.speed)%1,d=(u-.5)*132,forwardX=Math.sin(f.heading),forwardZ=Math.cos(f.heading),sideX=forwardZ,sideZ=-forwardX;bird.position.set(f.originX+forwardX*d+sideX*f.lateral,f.altitude+Math.sin(t*1.4+f.bob)*.32,f.originZ+forwardZ*d+sideZ*f.lateral);bird.rotation.y=f.heading;const flap=Math.sin(t*f.flap+f.bob)*(bird.userData.species==='eagle'?.42:.68);bird.userData.wings.left.rotation.z=flap;bird.userData.wings.right.rotation.z=-flap;}
     for(const item of this.coins){item.coin.position.y=item.base+Math.sin(t*2.1)*.13;item.coin.rotation.y=t*.9;item.coin.visible=(item.b.stored||0)>3&&!item.b.finishAt;}
     for(const v of this.villagers){const a=t*v.speed+v.phase;if(v.route===0){v.model.position.set(Math.sin(a)*.32,.015,Math.cos(a)*7);v.model.rotation.y=Math.sin(a)>0?Math.PI:0;}else if(v.route===1){v.model.position.set(Math.cos(a)*6,.015,2+Math.sin(a)*.28);v.model.rotation.y=Math.sin(a)>0?-Math.PI/2:Math.PI/2;}else{v.model.position.set(2.6+Math.cos(a)*1.5,.015,6.7+Math.sin(a)*.6);v.model.rotation.y=-a;}v.model.position.y+=animateUnit(v.model,t,true,v.phase);}
     for(const group of [this.heroVisitors])for(const model of group?.children||[]){if(model.userData.resting){animateUnit(model,t,false);continue;}model.userData.homePosition??=model.position.clone();const h=model.userData.homePosition,phase=model.userData.phase||h.x,a=t*.55+phase;model.position.set(h.x+Math.cos(a)*.3,.03+animateUnit(model,t,true,phase),h.z+Math.sin(a)*.3);model.rotation.y=-a;}
@@ -628,5 +654,5 @@ export class World{
       if(e.age>=e.life){this.particles.remove(e.mesh);if(e.kind==='damage')e.mesh.material.map.dispose();else e.mesh.geometry.dispose();if(![...materials.values()].includes(e.mesh.material))e.mesh.material.dispose();this.effects.splice(i,1);}}
     if(this.selection.visible)this.selection.children[1].material.opacity=.20+Math.sin(t*3)*.08;
   }
-  setQuality(value){this.quality=graphicsProfile(value);const size=Math.min(GRAPHICS[this.quality].shadow,this.renderer.capabilities.maxTextureSize);if(this.sun.shadow.mapSize.x!==size){this.sun.shadow.map?.dispose();this.sun.shadow.map=null;this.sun.shadow.mapSize.set(size,size);}this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.needsUpdate=true;this.resize();}
+  setQuality(value){this.quality=graphicsProfile(value);this.updateBirdVisibility();const size=Math.min(GRAPHICS[this.quality].shadow,this.renderer.capabilities.maxTextureSize);if(this.sun.shadow.mapSize.x!==size){this.sun.shadow.map?.dispose();this.sun.shadow.map=null;this.sun.shadow.mapSize.set(size,size);}this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.needsUpdate=true;this.resize();}
 }

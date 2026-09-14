@@ -11,7 +11,8 @@ export const TYPES = {
   barracks: {name:'Barracks',icon:'swords',desc:'Upgrade to unlock new troop types. Use the Laboratory to improve troop levels.',gold:850,elixir:150,size:3,hp:850,max:2,time:18},
   tower: {name:'Watchtower',icon:'tower-control',desc:'Rangers watch over the village from above, firing at enemies in range.',gold:650,elixir:0,size:1.8,hp:700,max:5,time:15},
   cannon: {name:'Iron Cannon',icon:'crosshair',desc:'A hard-hitting defense against ground troops. Protect your resource buildings.',gold:800,elixir:100,size:2,hp:850,max:4,time:18},
-  storage: {name:'Storehouse',icon:'warehouse',desc:'Safely holds your supplies. Upgrades greatly increase gold and elixir capacity.',gold:500,elixir:0,size:2.6,hp:750,max:3,time:13},
+  storage: {name:'Gold Storehouse',icon:'coins',desc:'A reinforced treasury used only for gold. Upgrade it to increase gold capacity.',gold:500,elixir:0,size:2.6,hp:750,max:3,time:13},
+  elixirStorage: {name:'Elixir Reservoir',icon:'droplets',desc:'A sealed crystal reservoir used only for elixir. Upgrade it to increase elixir capacity.',gold:550,elixir:0,size:2.6,hp:750,max:3,time:13},
   camp: {name:'Army Camp',icon:'tent',desc:'A place for your army to gather. Each camp level adds 6 troop spaces.',gold:550,elixir:100,size:2.6,hp:600,max:3,time:15},
   cottage: {name:'Builder Lodge',icon:'house',desc:'A home for your builders. Hire up to five builders with gems.',gold:0,elixir:0,size:2,hp:500,max:1,time:0}
 };
@@ -31,6 +32,7 @@ Object.assign(TYPES,{
  tesla:{name:'Storm Coil',icon:'zap',desc:'Rapid electric strikes against ground and flying enemies.',gold:2300,elixir:500,size:1.8,hp:1100,max:4,time:30,unlock:4},
  inferno:{name:'Inferno Spire',icon:'flame',desc:'A searing beam cuts down tough troops.',gold:4500,elixir:1500,size:2,hp:1800,max:3,time:45,unlock:6},
  drill:{name:'Dark Elixir Drill',icon:'fuel',desc:'Produces dark elixir for hero upgrades.',gold:1700,elixir:500,size:2.3,hp:800,max:3,time:25,unlock:3},
+ darkStorage:{name:'Dark Elixir Vault',icon:'fuel',desc:'An armored vault used only for dark elixir. Upgrade it to increase dark elixir capacity.',gold:1900,elixir:700,size:2.5,hp:1050,max:2,time:28,unlock:1},
  wall:{name:'Fortress Wall',icon:'brick-wall',desc:'Blocks ground troops until destroyed. Flying units pass over.',gold:75,elixir:0,size:.8,hp:550,max:160,time:0,unlock:1},
  bomb:{name:'Burst Trap',icon:'bomb',desc:'Triggers once when ground troops approach. Automatically rearms after each defense.',gold:220,elixir:0,size:.7,hp:1,max:12,time:5,unlock:2}
 });
@@ -118,14 +120,14 @@ export function applyAction(s,a,now=Date.now(),random=Math.random){
  if(a.type==='move'){const b=s.buildings.find(b=>b.id===a.id);if(!b||b.finishAt||!canPlace(s,b.type,a.x,a.z,b.id))return {error:'This placement is blocked.'};b.x=a.x;b.z=a.z;b.rotation=(a.rotation||0)%4;return {ok:true};}
  if(a.type==='upgrade'){const target=s.buildings.find(b=>b.id===a.id);if(target?.type==='wall')return Q.action(s,{type:'wall-upgrade',ids:[target.id],currency:a.currency||'gold'},now);return upgrade(s,target,now);}
  if(a.type==='train')return train(s,a.troop,now);
- if(a.type==='collect'){const result=collect(s,a.id);for(const b of s.buildings.filter(b=>b.type==='drill'&&(!a.id||b.id===a.id))){const n=Math.floor(b.stored||0);s.dark+=n;b.stored-=n;}return result;}
+ if(a.type==='collect'){const result=collect(s,a.id);let dark=0;for(const b of s.buildings.filter(b=>b.type==='drill'&&(!a.id||b.id===a.id))){const n=Math.max(0,Math.min(Math.floor(b.stored||0),resourceCapacity(s,'dark')-s.dark));s.dark+=n;b.stored-=n;dark+=n;}return {...result,dark};}
  if(a.type==='research')return beginResearch(s,a.troop,now);
  if(a.type==='hero-upgrade')return upgradeHero(s,a.hero,now);
  if(a.type==='brew')return brew(s,a.spell,now);
  if(a.type==='clear')return clearObstacle(s,a.id,now,random);
  if(a.type==='claim')return claimQuest(s,a.id)?{ok:true}:{error:'Quest is not ready.'};
  if(a.type==='builder'){const cost=[0,0,250,500,1000][s.builders]||1000;if(s.builders>=5)return {error:'All 5 builders are hired.'};if(s.gems<cost)return {error:'Not enough gems.'};s.gems-=cost;s.builders++;return {ok:true};}
- if(a.type==='exchange'){if(!['gold','elixir','dark'].includes(a.resource))return {error:'Unknown resource.'};if(s.gems<20)return {error:'Not enough gems.'};if(a.resource!=='dark'&&s[a.resource]>=capacity(s))return {error:'Your stores are full.'};s.gems-=20;s[a.resource]=a.resource==='dark'?s.dark+200:Math.min(capacity(s),s[a.resource]+1500);return {ok:true};}
+ if(a.type==='exchange'){if(!['gold','elixir','dark'].includes(a.resource))return {error:'Unknown resource.'};if(s.gems<20)return {error:'Not enough gems.'};const cap=resourceCapacity(s,a.resource);if(s[a.resource]>=cap)return {error:'Your '+resourceName(a.resource)+' storage is full.'};s.gems-=20;s[a.resource]=Math.min(cap,s[a.resource]+(a.resource==='dark'?200:1500));return {ok:true};}
  if(a.type==='skip'){const target=a.kind==='hero'?s.heroes[a.id]:a.kind==='research'?s.researchQueue[0]:a.kind==='training'?s.queue[0]:a.kind==='spell'?s.spellQueue[0]:a.kind==='obstacle'?s.obstacles.find(o=>o.id===a.id):s.buildings.find(b=>b.id===a.id);if(!target?.finishAt)return {error:'Nothing to finish.'};const cost=skipCost(target.finishAt,now);if(s.gems<cost)return {error:'Not enough gems.'};s.gems-=cost;const shift=target.finishAt-now;if(a.kind==='training')for(const q of s.queue)q.finishAt-=shift;if(a.kind==='spell')for(const q of s.spellQueue)q.finishAt-=shift;target.finishAt=now;advance(s,now);return {ok:true};}
  return {error:'Unknown action.'};
 }
@@ -146,6 +148,8 @@ export function initialState(now=Date.now()){
     {id:'tower2',type:'tower',x:1,z:-7,level:1},
     {id:'cannon',type:'cannon',x:7,z:0,level:1},
     {id:'storage',type:'storage',x:-2.5,z:5.6,level:1},
+    {id:'elixir-storage',type:'elixirStorage',x:-7.5,z:6,level:1},
+    {id:'dark-storage',type:'darkStorage',x:9,z:3,level:1},
     {id:'camp',type:'camp',x:3,z:7,level:1},
     {id:'cottage',type:'cottage',x:-6.5,z:-1,level:1}
   ]};
@@ -161,7 +165,15 @@ export function buildingHp(b){
  const fortification=1+.24*n+.04*n*n;
  return Math.round(d.hp*(1+.25*n)*fortification);
 }
-export function capacity(s){return 5000+s.buildings.filter(b=>b.type==='storage'&&!b.constructing).reduce((n,b)=>n+b.level*b.level*3000*Math.max(1,(b.level-1)/3),0);}
+const STORAGE_TYPES={gold:'storage',elixir:'elixirStorage',dark:'darkStorage'};
+const BASE_CAPACITY={gold:5000,elixir:5000,dark:500};
+export function resourceName(resource){return resource==='dark'?'dark elixir':resource;}
+export function resourceCapacity(s,resource='gold'){
+ const type=STORAGE_TYPES[resource]||STORAGE_TYPES.gold,base=BASE_CAPACITY[resource]||BASE_CAPACITY.gold,scale=resource==='dark'?900:3000;
+ return Math.floor(base+s.buildings.filter(b=>b.type===type&&!b.constructing).reduce((n,b)=>n+b.level*b.level*scale*Math.max(1,(b.level-1)/3),0));
+}
+// Backwards-compatible shorthand: callers that do not specify a resource mean gold.
+export function capacity(s,resource='gold'){return resourceCapacity(s,resource);}
 export function armyCapacity(s){return 24+s.buildings.filter(b=>b.type==='camp'&&!b.constructing).reduce((n,b)=>n+b.level*6,0);}
 export function armySize(army){return Object.entries(TROOPS).reduce((n,[k,v])=>n+(army[k]||0)*v.space,0);}
 export function queueSize(s){return s.queue.reduce((n,q)=>n+TROOPS[q.type].space,0);}
@@ -223,7 +235,7 @@ export function advance(s,now=Date.now()){
   for(const q of done){s.army[q.type]=(s.army[q.type]||0)+1;s.stats.trained++;events.push({kind:'troop',type:q.type});}
   advanceProgression(s,now,events);X.advance(s,now,events);s.lastTick=now;return events;
 }
-export function collect(s,only){let gold=0,elixir=0;const cap=capacity(s);for(const b of s.buildings){if(only&&b.id!==only)continue;if(b.type==='mine'){const n=Math.max(0,Math.min(Math.floor(b.stored||0),cap-s.gold));s.gold+=n;b.stored=(b.stored||0)-n;gold+=n;}if(b.type==='well'){const n=Math.max(0,Math.min(Math.floor(b.stored||0),cap-s.elixir));s.elixir+=n;b.stored=(b.stored||0)-n;elixir+=n;}}return {gold,elixir};}
+export function collect(s,only){let gold=0,elixir=0;const goldCap=resourceCapacity(s,'gold'),elixirCap=resourceCapacity(s,'elixir');for(const b of s.buildings){if(only&&b.id!==only)continue;if(b.type==='mine'){const n=Math.max(0,Math.min(Math.floor(b.stored||0),goldCap-s.gold));s.gold+=n;b.stored=(b.stored||0)-n;gold+=n;}if(b.type==='well'){const n=Math.max(0,Math.min(Math.floor(b.stored||0),elixirCap-s.elixir));s.elixir+=n;b.stored=(b.stored||0)-n;elixir+=n;}}return {gold,elixir};}
 export function claimQuest(s,id){const q=QUESTS.find(q=>q.id===id);if(!q||s.claimed.includes(id)||q.value(s)<q.goal)return false;s.gold=Math.min(capacity(s),s.gold+q.reward);s.claimed.push(id);return true;}
 export function loadState(storage,now=Date.now()){
   try{
@@ -253,7 +265,7 @@ export function enemyBuildings(index){
   if(index>=5)list.push({id:'e-cannon3',type:'cannon',x:0,z:-6.5,level});
   return list.map(b=>({...b,maxHp:Math.round(buildingHp(b)/(1+(Math.min(15,b.level)-1)*.25)*(.67+index*.085)),hp:Math.round(buildingHp(b)/(1+(Math.min(15,b.level)-1)*.25)*(.67+index*.085)),cooldown:Math.random()*.8}));
 }
-export function createBattle(s,index){return X.enrichBattle(s,{combatVersion:9,enemy:enemyDef(index),buildings:enemyBuildings(index),units:[],remaining:{...s.army},deployed:{guardian:0,ranger:0,giant:0},started:false,elapsed:0,duration:150,bounds:8.7,spells:s.spells?.thunder||0,spellStock:{...s.spells},heroStock:Object.fromEntries(Object.entries(s.heroes||{}).filter(([k,h])=>h.level>0&&!h.finishAt&&!(h.recoverAt>Date.now())).map(([k,h])=>[k,h.level])),effects:[],ended:false,stats:{destroyed:0,stars:0,percent:0}});}
+export function createBattle(s,index){return X.enrichBattle(s,{combatVersion:9,attackerHall:hallLevel(s),enemy:enemyDef(index),buildings:enemyBuildings(index),units:[],remaining:{...s.army},deployed:{guardian:0,ranger:0,giant:0},started:false,elapsed:0,duration:150,bounds:8.7,spells:s.spells?.thunder||0,spellStock:{...s.spells},heroStock:Object.fromEntries(Object.entries(s.heroes||{}).filter(([k,h])=>h.level>0&&!h.finishAt&&!(h.recoverAt>Date.now())).map(([k,h])=>[k,h.level])),effects:[],ended:false,stats:{destroyed:0,stars:0,percent:0}});}
 export function canDeploy(battle,x,z){
  if(!Number.isFinite(x)||!Number.isFinite(z)||battle.ended)return false;
  const regions=battle.land||[{x1:-(battle.bounds||8.7),x2:battle.bounds||8.7,z1:-(battle.bounds||8.7),z2:battle.bounds||8.7}];
@@ -310,10 +322,10 @@ export function stepBattle(battle,dt,onEvent=()=>{}){
 export function settleBattle(s,battle){
   const root=s;s=X.wallet(s,battle);
   if(battle.settled)return battle.result;if(battle.practice){battle.ended=true;battle.settled=true;battle.stats=battleStats(battle);return battle.result={gold:0,elixir:0,dark:0,glory:0,...battle.stats,won:battle.stats.stars>0,practice:true};}battle.ended=true;battle.settled=true;battle.stats=battleStats(battle);
-  const ratio=battle.stats.percent/100,earned=R.earnedLoot(battle);const gold=Math.min(Math.max(0,capacity(s)-s.gold),earned.gold),elixir=Math.min(Math.max(0,capacity(s)-s.elixir),earned.elixir),glory=battle.stats.stars?Math.floor(battle.enemy.glory*battle.stats.stars/3):0;
-  s.gold+=gold;s.elixir+=elixir;s.glory+=glory;
+  const ratio=battle.stats.percent/100,earned=R.earnedLoot(battle);const gold=Math.min(Math.max(0,resourceCapacity(s,'gold')-s.gold),earned.gold),elixir=Math.min(Math.max(0,resourceCapacity(s,'elixir')-s.elixir),earned.elixir),glory=battle.started?R.trophyChange(battle.attackerHall||hallLevel(s),battle.enemy.hall||battle.enemy.level||1,battle.stats.stars):0;
+  s.gold+=gold;s.elixir+=elixir;s.glory=Math.max(0,s.glory+glory);
   if(battle.stats.stars){s.stats.wins++;if(!battle.pvp&&!battle.special)s.cleared[battle.enemy.index]=Math.max(s.cleared[battle.enemy.index]||0,battle.stats.stars);}
-  const dark=battle.raid?earned.dark:battle.stats.stars?Math.floor((battle.enemy.dark??30)*ratio):0;s.dark=(s.dark||0)+dark;for(const u of battle.units.filter(u=>u.hero)){const h=s.heroes[u.type];if(h)h.recoverAt=Date.now()+30000;}
+  const rawDark=battle.raid?earned.dark:battle.stats.stars?Math.floor((battle.enemy.dark??30)*ratio):0,dark=Math.min(Math.max(0,resourceCapacity(s,'dark')-(s.dark||0)),rawDark);s.dark=(s.dark||0)+dark;for(const u of battle.units.filter(u=>u.hero)){const h=s.heroes[u.type];if(h)h.recoverAt=Date.now()+30000;}
   battle.result={gold,elixir,dark,glory,...battle.stats,won:battle.stats.stars>0};X.reward(root,battle,battle.result);R.recordAttack(root,battle,battle.result);return battle.result;
 }
 

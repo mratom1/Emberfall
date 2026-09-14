@@ -70,7 +70,7 @@ function buildingLevelDetails(g,b,size){
  for(const z of [-edge,edge])box(g,size*.93,.07+level*.008,.11,trim,0,.45,z);
  for(const x of [-edge,edge])box(g,.11,.07+level*.008,size*.93,trim,x,.45,0);
  for(let j=0;j<level;j++)box(g,.085,.13,.055,trim,-Math.min(size*.36,.8)+(j%8)*.2,.63+Math.floor(j/8)*.19,size*.48);
- if(level>=4&&['hall','barracks','storage','cottage','laboratory','forge'].includes(b.type))for(const side of [-1,1]){box(g,.2,.8+tier*.15,.22,stone,side*size*.37,1.17,size*.37);windowBlock(g,side*size*.28,1.55,size*.41,.2,.27);}
+ if(level>=4&&['hall','barracks','storage','elixirStorage','darkStorage','cottage','laboratory','forge'].includes(b.type))for(const side of [-1,1]){box(g,.2,.8+tier*.15,.22,stone,side*size*.37,1.17,size*.37);windowBlock(g,side*size*.28,1.55,size*.41,.2,.27);}
  if(level>=7){const badge=mesh(g,new THREE.OctahedronGeometry(.14+(level-7)*.009),trim,0,1.04,size*.49);badge.rotation.z=Math.PI/4;}
  if(level>=10&&!['bomb','flag'].includes(b.type))for(const side of [-1,1]){banner(g,side*edge,1.1+tier*.25,-edge,true);cyl(g,.08,.1,.4,trim,side*edge,2+tier*.25,-edge,12);}
  if(level>=13&&b.type!=='flag')for(const x of [-edge,edge])mesh(g,new THREE.OctahedronGeometry(.16),0x9ee8ed,x,1.4+tier*.2,-edge);
@@ -155,6 +155,15 @@ export function buildingModel(b,enemy=false){
     for(const y of [.62,1.23])box(g,1.95,.08,.07,0xae8c5b,0,y,.946);
     box(g,.64,.86,.11,C.timber,0,.81,.99);box(g,.15,.21,.06,C.gold,.19,1.08,1.06);
     barrel(g,-1.05,.28,.69);barrel(g,1.02,.28,.65);box(g,.63,.54,.57,0xbc965c,1.08,.55,-.7);box(g,.1,.58,.60,C.wood,1.08,.57,-.7);
+    for(const x of [-.62,0,.62]){cyl(g,.19,.22,.16,C.gold,x,.54,-1.02,10);cyl(g,.15,.18,.10,0xffdc75,x,.68,-1.02,10);}
+  }else if(type==='elixirStorage'){
+    cyl(g,1.0,1.12,.28,C.stoneDark,0,.43,0,12);cyl(g,.82,.94,1.55,0x6c4a7d,0,1.27,0,12);cyl(g,.73,.79,1.42,0xc572d5,0,1.3,0,12);cyl(g,.88,.92,.22,C.gold,0,2.08,0,12);
+    for(const a of [0,Math.PI/2,Math.PI,Math.PI*1.5]){const x=Math.cos(a)*.9,z=Math.sin(a)*.9;box(g,.18,1.65,.18,C.iron,x,1.25,z);sphere(g,.12,0xf2c8ff,x,2.08,z);}
+    sphere(g,.32,0xe7a5ee,0,2.34,0);for(const x of [-.48,.48])cone(g,.16,.55,0xcca0e3,x,.62,.88,6);
+  }else if(type==='darkStorage'){
+    cyl(g,1.05,1.16,.35,0x2d2939,0,.46,0,10);cyl(g,.88,.98,1.62,0x352a48,0,1.35,0,10);cyl(g,.72,.82,1.42,0x6f3d8d,0,1.36,0,10);cyl(g,.98,1.02,.25,C.iron,0,2.2,0,10);
+    for(const a of [0,Math.PI/2,Math.PI,Math.PI*1.5]){const x=Math.cos(a)*.93,z=Math.sin(a)*.93;box(g,.22,1.9,.22,0x3f4652,x,1.35,z);cone(g,.18,.38,0x9d65bf,x,2.5,z,5);}
+    mesh(g,new THREE.OctahedronGeometry(.33),0xb36ad3,0,2.62,0);for(const x of [-.55,.55])box(g,.35,.18,.7,C.gold,x,.55,.92);
   }else if(type==='camp'){
     roof(g,1.45,1.86,1.28,-.43,.30,-.24,0xc0b18a);box(g,1.49,.08,2,C.wood,-.43,.33,-.24);box(g,.04,1.55,.06,C.wood,-.43,1.02,.76);
     cone(g,.43,.28,0xe8bd61,.71,.53,.72,6);cyl(g,.5,.54,.12,0x77786a,.71,.32,.72,9);

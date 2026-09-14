@@ -1,11 +1,11 @@
-import {villageNavigator,advanceRoute} from './village-paths.js?v=17.0.0';
-import {LAND_REGIONS,unlockedLand,landContains} from './content.js?v=17.0.0';
-import {flagCanvas} from './flags.js?v=17.0.0';
-import {appearance} from './raids.js?v=17.0.0';
-import {gamePoint,gameDelta,isRotated} from './viewport.js?v=17.0.0';
-import {GRAPHICS, graphicsProfile, renderScale} from './graphics.js?v=17.0.0';
-import * as THREE from './assets/three.module.js?v=17.0.0';
-import {TYPES,TROOPS,HEROES,canPlace,canDeploy,unitDefinition} from './model.js?v=17.0.0';
+import {villageNavigator,advanceRoute} from './village-paths.js?v=17.1.0';
+import {LAND_REGIONS,unlockedLand,landContains} from './content.js?v=17.1.0';
+import {flagCanvas} from './flags.js?v=17.1.0';
+import {appearance} from './raids.js?v=17.1.0';
+import {gamePoint,gameDelta,isRotated} from './viewport.js?v=17.1.0';
+import {GRAPHICS, graphicsProfile, renderScale} from './graphics.js?v=17.1.0';
+import * as THREE from './assets/three.module.js?v=17.1.0';
+import {TYPES,TROOPS,HEROES,canPlace,canDeploy,unitDefinition} from './model.js?v=17.1.0';
 
 const C={grass:0x75a44e,grassLight:0x87b05a,grassDark:0x5c8c3f,dirt:0xc8b489,stone:0xc5c0a2,stoneDark:0x827f69,wall:0xd6c5a0,wood:0x72503c,timber:0x503e30,roof:0x984e3f,roofLight:0xbb6847,gold:0xe5bd57,iron:0x485452,leaf:0x407643,pine:0x335d3e,water:0x68a9a3};
 const materials=new Map();
@@ -190,22 +190,24 @@ let packedTreeMaterials;
 function suppliedTreeMaterials(){
   if(typeof document==='undefined')return null;
   if(!packedTreeMaterials){
-    const loader=new THREE.TextureLoader(),foliage=loader.load('/assets/tree-foliage.png'),bark=loader.load('/assets/tree-bark.webp');
-    foliage.colorSpace=THREE.SRGBColorSpace;bark.colorSpace=THREE.SRGBColorSpace;
-    foliage.anisotropy=4;bark.anisotropy=4;bark.wrapS=bark.wrapT=THREE.RepeatWrapping;bark.repeat.set(1,2);
+    const loader=new THREE.TextureLoader(),foliage=['/assets/tree-foliage.png','/assets/tree-foliage-1.png','/assets/tree-foliage-2.png','/assets/tree-foliage-3.png'].map(src=>loader.load(src)),bark=loader.load('/assets/tree-bark.webp');
+    for(const texture of foliage){texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=4;}bark.colorSpace=THREE.SRGBColorSpace;
+    bark.anisotropy=4;bark.wrapS=bark.wrapT=THREE.RepeatWrapping;bark.repeat.set(1,2);
     packedTreeMaterials={
-      foliage:new THREE.MeshStandardMaterial({map:foliage,transparent:true,alphaTest:.16,side:THREE.DoubleSide,roughness:.88,metalness:0}),
+      foliage:foliage.map(map=>new THREE.MeshStandardMaterial({map,transparent:true,alphaTest:.16,side:THREE.DoubleSide,roughness:.88,metalness:0})),
       bark:new THREE.MeshStandardMaterial({map:bark,color:0xb38c62,roughness:.95,metalness:0})
-    };packedTreeMaterials.foliage.userData.sharedPackedTree=true;packedTreeMaterials.bark.userData.sharedPackedTree=true;
+    };for(const material of packedTreeMaterials.foliage)material.userData.sharedPackedTree=true;packedTreeMaterials.bark.userData.sharedPackedTree=true;
   }
   return packedTreeMaterials;
 }
 function tree(parent,x,z,scale,kind,rand,featured=false){
   const g=new THREE.Group(),packed=featured&&suppliedTreeMaterials(),trunk=cyl(g,.13,.24,1.22,C.wood,0,.6,0,7);if(packed)trunk.material=packed.bark;
   if(packed){
-    // The foliage and bark are extracted from the two user-supplied packed Blender files.
-    for(const angle of [0,Math.PI/2,Math.PI/4]){const crown=new THREE.Mesh(new THREE.PlaneGeometry(3.15,3.75),packed.foliage.clone());crown.position.y=1.92;crown.rotation.y=angle;crown.castShadow=true;crown.receiveShadow=true;g.add(crown);}
-    for(const [dx,dz,s] of [[-.42,.08,.36],[.45,.12,.3],[.08,-.38,.28]])sphere(g,s,0x527e42,dx,1.78,dz);
+    // Four visibly different trees use foliage/bark extracted from the supplied packed Blender files.
+    const variant=Math.abs(Math.floor(kind))%4,specs=[[3.15,3.75,1.92],[2.25,3.85,1.94],[2.15,3.15,1.6],[2.45,2.35,1.2]],spec=specs[variant];
+    trunk.scale.y=variant===3?.65:variant===2?.82:1;
+    for(const angle of [0,Math.PI/2,Math.PI/4]){const crown=new THREE.Mesh(new THREE.PlaneGeometry(spec[0],spec[1]),packed.foliage[variant]);crown.position.y=spec[2];crown.rotation.y=angle;crown.castShadow=true;crown.receiveShadow=true;g.add(crown);}
+    if(variant===0)for(const [dx,dz,s] of [[-.42,.08,.36],[.45,.12,.3],[.08,-.38,.28]])sphere(g,s,0x527e42,dx,1.78,dz);
   }else if(kind<.75){const colors=[0x3b6840,0x467949,0x527e42,0x3a6241];for(let i=0;i<3;i++)cone(g,1.1-i*.2,1.7-i*.19,colors[Math.floor(rand()*colors.length)],0,1.4+i*.65,0,6);}
   else{sphere(g,1.11,kind>.94?0xa1a454:0x668c47,0,2,0);sphere(g,.77,0x6d954d,.6,1.8,.2);sphere(g,.8,0x749951,-.54,1.7,.19);}
   g.position.set(x,0,z);g.scale.setScalar(scale);g.rotation.y=rand()*6.28;parent.add(g);return g;
@@ -213,7 +215,7 @@ function tree(parent,x,z,scale,kind,rand,featured=false){
 
 export function obstacleModel(o){
   const seed=(Number(o.x)||0)*173+(Number(o.z)||0)*61+1301,rand=seeded(seed),g=new THREE.Group();let model;
-  if(o.type==='tree'){tree(g,0,0,o.finishAt?.65:.75,(o.variant??rand()),rand,true);model=g;}
+  if(o.type==='tree'){tree(g,0,0,o.finishAt?.65:.75,(o.variant??Math.floor(rand()*4)),rand,true);model=g;}
   else{if(o.type==='gem-box'){box(g,1.02,.55,.88,0x6e4d35,0,.35,0);for(const x of [-.36,.36])box(g,.10,.65,.94,0xefca72,x,.38,0);box(g,1.08,.15,.93,0xb28b4c,0,.68,0);for(let n=0;n<5;n++)mesh(g,new THREE.OctahedronGeometry(.20),0x86f2ad,(n-2)*.17,.84+(n%2)*.19,0).scale.y=1.5;}else{rock(g,.75,0x929b85,0,.4,0);rock(g,.42,C.stone,.45,.23,.26);}model=merged(g);}
   model.position.set(o.x,0,o.z);model.userData.obstacleId=o.id;model.traverse(node=>{node.userData.obstacleId=o.id;});return model;
 }
@@ -405,7 +407,7 @@ export class World{
     for(let i=0;i<26;i++)box(g,.34,.13,1.82,0xb09969,-23.1+i*.34,.21,12);
     for(const z of [11.18,12.82]){box(g,8.9,.1,.1,C.wood,-18.7,.78,z);for(let x=-23;x<-14.7;x+=1.25)box(g,.12,.9,.12,C.wood,x,.52,z);}
     for(let i=0;i<164;i++){
-      const x=(r()-.5)*65,z=(r()-.5)*65;if(Math.abs(x)<17&&Math.abs(z)<17||landContains(LAND_REGIONS.slice(1),x,z,-1))continue;if(z>10&&Math.abs(x)<2.8)continue;if(x>-24&&x<-14&&z>10.5&&z<13.5)continue;if(Math.abs(x-(-18+Math.sin(z*.18)*2.2))<2)continue;tree(g,x,z,.62+r()*.73,r(),r);
+      const x=(r()-.5)*65,z=(r()-.5)*65;if(landContains(LAND_REGIONS,x,z))continue;if(z>10&&Math.abs(x)<2.8)continue;if(x>-24&&x<-14&&z>10.5&&z<13.5)continue;if(Math.abs(x-(-18+Math.sin(z*.18)*2.2))<2)continue;tree(g,x,z,.62+r()*.73,r(),r);
     }
     // Patches of wildflowers stay well away from interactive building footprints.
     for(let i=0;i<220;i++){const x=(r()-.5)*30,z=(r()-.5)*30;if(Math.abs(x)<9.9&&Math.abs(z)<9.9)continue;const m=cone(g,.04+r()*.04,.2+r()*.2,0x94b76a,x,.1,z,3);m.rotation.z=(r()-.5)*.4;if(r()>.75)sphere(g,.06,0xe1c679,x,.3,z);}

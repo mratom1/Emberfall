@@ -1,8 +1,8 @@
-import {COUNTRY_CODES,FLAG_COST} from './flags.js?v=17.0.0';
-import {EXTRA_HEROES,unlockedLand,landContains} from './content.js?v=17.0.0';
-import * as R from './raids.js?v=17.0.0';
-import * as Q from './quality.js?v=17.0.0';
-import * as X from './expansion.js?v=17.0.0';
+import {COUNTRY_CODES,FLAG_COST} from './flags.js?v=17.1.0';
+import {EXTRA_HEROES,unlockedLand,landContains} from './content.js?v=17.1.0';
+import * as R from './raids.js?v=17.1.0';
+import * as Q from './quality.js?v=17.1.0';
+import * as X from './expansion.js?v=17.1.0';
 export const SAVE_KEY = 'emberfall.kingdom.v1';
 export const TYPES = {
   hall: {name:'Town Hall',icon:'castle',desc:'The heart of your village. Upgrade to unlock stronger buildings and a larger army.',gold:0,elixir:0,size:3.7,hp:1600,max:1,time:30},
@@ -72,7 +72,7 @@ export const HEROES={
 export const SPELLS={thunder:{name:'Thunder',icon:'zap',cost:120,time:3,unlock:1,desc:'350 damage in a 3.5-tile radius.'},heal:{name:'Healing Circle',icon:'heart-pulse',cost:150,time:4,unlock:1,desc:'Restores nearby troops for 8 seconds.'},rage:{name:'Rage',icon:'flame',cost:180,time:4,unlock:2,desc:'Boosts movement and damage for 8 seconds.'},freeze:{name:'Freeze',icon:'snowflake',cost:180,time:4,unlock:3,desc:'Stops nearby defenses for 6 seconds.'}};
 export const GEM_PACKS=[{id:'pouch',name:'Pouch of Gems',gems:500,cents:499},{id:'chest',name:'Chest of Gems',gems:1200,cents:999},{id:'vault',name:'Vault of Gems',gems:2500,cents:1999}];
 function heroState(){return Object.fromEntries(X.HOME_HEROES.map(k=>[k,{level:0,recoverAt:0}]));}
-export function seedObstacles(){return Array.from({length:22},(_,i)=>{const a=i/22*Math.PI*2,r=11.2+(i%3)*.65;return {id:'tree-'+i,type:i%5===0?'rock':'tree',variant:i%5,x:Math.round(Math.cos(a)*r*2)/2,z:Math.round(Math.sin(a)*r*2)/2};});}
+export function seedObstacles(){return Array.from({length:22},(_,i)=>{const a=i/22*Math.PI*2,r=11.2+(i%3)*.65;return {id:'tree-'+i,type:i%5===0?'rock':'tree',variant:i%4,x:Math.round(Math.cos(a)*r*2)/2,z:Math.round(Math.sin(a)*r*2)/2};});}
 export function obstacleRespawnDelay(random=Math.random){return 300000+Math.floor(random()*600001);}
 export function troopUnlocked(s,type){return Object.hasOwn(TROOPS,type)&&troopLevel(s)>=(TROOPS[type]?.unlock||1);}
 export function heroMaxLevel(s,type){const d=HEROES[type];if(!d||hallLevel(s)<d.unlock||troopLevel(s)<(d.barracks||1))return 0;return d.barracks?Math.min(50,hallLevel(s)*5,troopLevel(s)*5):Math.min(50,(hallLevel(s)-d.unlock+1)*5);}
@@ -99,7 +99,7 @@ export function advanceProgression(s,now,events=[]){
  for(const q of s.researchQueue.filter(q=>q.finishAt<=now)){s.research[q.type]=(s.research[q.type]||1)+1;events.push({kind:'research',type:q.type});}s.researchQueue=s.researchQueue.filter(q=>q.finishAt>now);
  for(const q of s.spellQueue.filter(q=>q.finishAt<=now)){s.spells[q.type]=(s.spells[q.type]||0)+1;events.push({kind:'spell',type:q.type});}s.spellQueue=s.spellQueue.filter(q=>q.finishAt>now);
  s.nextObstacleAt??=now+obstacleRespawnDelay();
- if(now>=s.nextObstacleAt){const attempts=Math.min(4,1+Math.floor((now-s.nextObstacleAt)/300000)),regions=unlockedLand(s);for(let n=0;n<attempts&&s.obstacles.length<28;n++){for(let i=0;i<80;i++){const r=regions[Math.floor(Math.random()*regions.length)],x=Math.round((r.x1+1+Math.random()*(r.x2-r.x1-2))*2)/2,z=Math.round((r.z1+1+Math.random()*(r.z2-r.z1-2))*2)/2;if(canPlace(s,'bomb',x,z)&&!(x<-13&&z>10.5&&z<13.5)){const type=Math.random()<.72?'tree':'rock';s.obstacles.push({id:type+'-'+now+'-'+n,type,variant:Math.floor(Math.random()*5),x,z});events.push({kind:'regrow',type});break;}}}s.nextObstacleAt=now+obstacleRespawnDelay();}
+ if(now>=s.nextObstacleAt){const attempts=Math.min(4,1+Math.floor((now-s.nextObstacleAt)/300000)),regions=unlockedLand(s);for(let n=0;n<attempts&&s.obstacles.length<28;n++){for(let i=0;i<80;i++){const r=regions[Math.floor(Math.random()*regions.length)],x=Math.round((r.x1+1+Math.random()*(r.x2-r.x1-2))*2)/2,z=Math.round((r.z1+1+Math.random()*(r.z2-r.z1-2))*2)/2;if(canPlace(s,'bomb',x,z)&&!(x<-13&&z>10.5&&z<13.5)){const type=Math.random()<.72?'tree':'rock';s.obstacles.push({id:type+'-'+now+'-'+n,type,variant:Math.floor(Math.random()*4),x,z});events.push({kind:'regrow',type});break;}}}s.nextObstacleAt=now+obstacleRespawnDelay();}
 
 }
 export function deployHero(s,battle,type,x,z,now=Date.now()){

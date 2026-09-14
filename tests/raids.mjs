@@ -15,10 +15,10 @@ assert.deepEqual(R.availableLoot({gold:1234567,elixir:987654,dark:12345,gems:999
 pass('Raid loot is exactly a 10% maximum of each stored resource, without fixed caps or stealable gems');
 {
  const attacker=fresh(),defender=fresh();attacker.gold=M.capacity(attacker)-7;attacker.elixir=M.capacity(attacker)-11;defender.gold=123456;defender.elixir=234567;defender.dark=9001;
- const before={...defender},b=R.configureBattle(M.createBattle(attacker,0),{id:'d',name:'Defender',state:defender});b.id='loot-test';R.reserveLoot(defender,b);b.started=true;for(const building of b.buildings)building.hp=0;
+ attacker.glory=200;defender.glory=200;const before={...defender},b=R.configureBattle(M.createBattle(attacker,0),{id:'d',name:'Defender',state:defender});b.id='loot-test';R.reserveLoot(defender,b);b.started=true;for(const building of b.buildings)building.hp=0;
  const r=M.settleBattle(attacker,b);assert.equal(r.gold,7);assert.equal(r.elixir,11);assert.equal(r.dark,900);R.settleDefender(defender,b,r,now);
  assert.equal(defender.gold,before.gold-7);assert.equal(defender.elixir,before.elixir-11);assert.equal(defender.dark,before.dark-900);
- assert.equal(defender.gems,before.gems);assert.equal(M.settleBattle(attacker,b),r);assert.equal(attacker.raids.history.length,1);
+ assert.equal(defender.gems,before.gems);assert.ok(r.glory>0);assert.equal(defender.glory,before.glory-r.glory);assert.equal(r.defenderGlory,-r.glory);assert.equal(M.settleBattle(attacker,b),r);assert.equal(attacker.raids.history.length,1);
  pass('Attacker storage limits and defender refunds conserve actual transferred loot, including overflow and replay');
 }
 {
@@ -45,9 +45,15 @@ pass('Raid loot is exactly a 10% maximum of each stored resource, without fixed 
 {
  for(const hall of [1,4,8,15]){const s=fresh();s.buildings.find(b=>b.type==='hall').level=hall;const b=R.createBotBattle(s,()=>.6,now);assert.ok(Math.abs(b.enemy.hall-hall)<=1);assert.equal(b.enemy.kind,'bot');assert.equal(b.enemy.gold,Math.floor(b.defenderBalance.gold/10));assert.ok(b.buildings.every(x=>x.hp>0&&Number.isFinite(x.maxHp)));}
  const weak=fresh();weak.buildings=weak.buildings.filter(b=>b.type==='hall');weak.obstacles=[];weak.raids.nextDefenseAt=now;const before={gold:weak.gold,elixir:weak.elixir,dark:weak.dark};
- const entry=R.simulateDefense(weak,()=>.5,now);assert.ok(entry);assert.equal(entry.result.percent,100);for(const k of ['gold','elixir','dark'])assert.equal(weak[k],before[k]-Math.floor(before[k]/10));assert.equal(weak.raids.history[0].direction,'defense');assert.equal(R.simulateDefense(weak,()=>.5,now+1),null);
+ const entry=R.simulateDefense(weak,()=>.5,now);assert.ok(entry);assert.equal(entry.result.percent,100);for(const k of ['gold','elixir','dark'])assert.equal(weak[k],before[k]-Math.floor(Math.floor(before[k]/10)*.2));assert.equal(weak.raids.history[0].direction,'defense');assert.equal(R.simulateDefense(weak,()=>.5,now+1),null);
  weak.raids.nextDefenseAt=now;weak.shieldUntil=now+3600000;assert.equal(R.simulateDefense(weak,()=>.5,now),null);
  pass('Level-matched AI uses real combat against saved defenses, obeys the 10% rule, cooldown and Shields');
+}
+{
+ const s=fresh(),goldCap=M.resourceCapacity(s,'gold'),elixirCap=M.resourceCapacity(s,'elixir'),darkCap=M.resourceCapacity(s,'dark');s.buildings.find(b=>b.type==='storage').level=2;assert.ok(M.resourceCapacity(s,'gold')>goldCap);assert.equal(M.resourceCapacity(s,'elixir'),elixirCap);assert.equal(M.resourceCapacity(s,'dark'),darkCap);
+ const losses=[0,1,2,3].map(stars=>R.trophyChange(5,5,stars));assert.ok(losses[0]<0);assert.ok(losses[1]>0&&losses[1]<losses[2]&&losses[2]<losses[3]);assert.ok(R.trophyChange(5,7,3)>R.trophyChange(5,4,3));
+ const defender=fresh();defender.gold=10000;defender.elixir=8000;defender.dark=1000;const b=R.configureBattle(M.createBattle(s,0),{id:'split',name:'Split Vaults',state:defender});for(const key of ['gold','elixir','dark']){const hall=b.buildings.find(x=>x.type==='hall');assert.equal(hall.loot[key],Math.floor(b.enemy[key]*.2));const matching={gold:'storage',elixir:'elixirStorage',dark:'darkStorage'}[key];assert.ok(b.buildings.filter(x=>x.type===matching).every(x=>Object.entries(x.loot).every(([resource,value])=>resource===key||value===0)));}
+ pass('Gold, elixir and dark storage capacities are independent; Town Hall holds 20% and star/TH levels determine trophies');
 }
 {
  const signature=model=>{const hash=createHash('sha256');model.traverse(o=>{if(o.isMesh){for(const name of ['position','color']){const a=o.geometry.getAttribute(name);if(a)hash.update(Buffer.from(a.array.buffer));}o.geometry.dispose();o.material.dispose();}});return hash.digest('hex');};

@@ -1,11 +1,11 @@
-import {villageNavigator,advanceRoute} from './village-paths.js?v=17.1.0';
-import {LAND_REGIONS,unlockedLand,landContains} from './content.js?v=17.1.0';
-import {flagCanvas} from './flags.js?v=17.1.0';
-import {appearance} from './raids.js?v=17.1.0';
-import {gamePoint,gameDelta,isRotated} from './viewport.js?v=17.1.0';
-import {GRAPHICS, graphicsProfile, renderScale} from './graphics.js?v=17.1.0';
-import * as THREE from './assets/three.module.js?v=17.1.0';
-import {TYPES,TROOPS,HEROES,canPlace,canDeploy,unitDefinition} from './model.js?v=17.1.0';
+import {villageNavigator,advanceRoute} from './village-paths.js?v=17.2.0';
+import {LAND_REGIONS,unlockedLand,landContains} from './content.js?v=17.2.0';
+import {flagCanvas} from './flags.js?v=17.2.0';
+import {appearance} from './raids.js?v=17.2.0';
+import {gamePoint,gameDelta,isRotated} from './viewport.js?v=17.2.0';
+import {GRAPHICS, graphicsProfile, renderScale} from './graphics.js?v=17.2.0';
+import * as THREE from './assets/three.module.js?v=17.2.0';
+import {TYPES,TROOPS,HEROES,canPlace,canDeploy,unitDefinition} from './model.js?v=17.2.0';
 
 const C={grass:0x75a44e,grassLight:0x87b05a,grassDark:0x5c8c3f,dirt:0xc8b489,stone:0xc5c0a2,stoneDark:0x827f69,wall:0xd6c5a0,wood:0x72503c,timber:0x503e30,roof:0x984e3f,roofLight:0xbb6847,gold:0xe5bd57,iron:0x485452,leaf:0x407643,pine:0x335d3e,water:0x68a9a3};
 const materials=new Map();
@@ -17,6 +17,14 @@ function cyl(p,rt,rb,h,c,x=0,y=0,z=0,n=8){return mesh(p,new THREE.CylinderGeomet
 function rock(p,r,c,x,y,z){const m=mesh(p,new THREE.DodecahedronGeometry(r,0),c,x,y,z);m.rotation.set(x*.4,z*.7,x*.1);return m;}
 function sphere(p,r,c,x,y,z){return mesh(p,new THREE.IcosahedronGeometry(r,1),c,x,y,z);}
 function seeded(seed){return()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};}
+export function riverPoint(z){return {x:-18+Math.sin(z*.18)*2.2,z};}
+export function riverWidth(z){return 3.15+Math.sin(z*.115+.8)*.34+Math.sin(z*.047)*.22;}
+function riverRibbon(parent,z1,z2,segments,widthExtra,color,y){
+  const positions=[];
+  const edge=(z,side)=>{const center=riverPoint(z),slope=(riverPoint(z+.1).x-riverPoint(z-.1).x)/.2,n=Math.hypot(1,slope),w=riverWidth(z)/2+widthExtra;return [center.x+side*w/n,y,z-side*slope*w/n];};
+  for(let i=0;i<segments;i++){const a=z1+(z2-z1)*i/segments,b=z1+(z2-z1)*(i+1)/segments,aL=edge(a,-1),aR=edge(a,1),bL=edge(b,-1),bR=edge(b,1);positions.push(...aL,...bL,...bR,...aL,...bR,...aR);}
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geo.computeVertexNormals();return mesh(parent,geo,color);
+}
 function merged(group){
   group.updateMatrixWorld(true);const positions=[],normals=[],colors=[];
   group.traverse(o=>{if(!o.isMesh||o.userData.banner)return;const g=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone();g.applyMatrix4(o.matrixWorld);const p=g.getAttribute('position'),n=g.getAttribute('normal'),c=o.material.color;
@@ -401,8 +409,9 @@ export class World{
     for(let z=-11;z<=24;z+=.48){const x=z>8?Math.sin((z-8)*.25)*1.2:Math.sin(z*.45)*.26;const m=box(g,1.47+r()*.2,.035,.59,0xbab087,x,-.055,z);m.rotation.y=Math.sin(z*.25)*.09;}
     for(let x=-8;x<=8;x+=.5)box(g,.55,.027,1.1,0xbeb68c,x,-.04,1.93+Math.sin(x*.32)*.22);
     for(let i=0;i<54;i++){const z=r()*30-8,x=(r()-.5)*1.35;const stone=box(g,.18+r()*.25,.034,.15+r()*.24,0xcbc29d,x,-.01,z);stone.rotation.y=r()*3;}
-    // A cool stream skirts the western tree line.
-    for(let z=-29;z<=30;z+=1.4){const x=-18+Math.sin(z*.18)*2.2;box(g,3.2,.035,1.52,0x699f93,x,-.04,z);box(g,2.7,.04,1.52,0x72b2ac,x,-.017,z);if(Math.floor(z)%3===0){box(g,.65,.01,.055,0xb3d2b3,x+.5,.008,z);rock(g,.48,0x939b81,x+1.8,.15,z);}}
+    // One continuous stream enters and exits beneath the distant mountain/cloud boundary.
+    riverRibbon(g,-68,68,150,.72,0x8c9273,-.105);riverRibbon(g,-68,68,150,.36,0x638c79,-.075);riverRibbon(g,-68,68,180,0,0x62a9a5,-.035);riverRibbon(g,-68,68,180,-.28,0x78c0bd,-.014);
+    for(let z=-62;z<=62;z+=2.8){const center=riverPoint(z),side=Math.floor((z+62)/2.8)%2?-1:1,w=riverWidth(z)/2+.45;rock(g,.22+((z*37)%7+7)%7*.035,0x8d947e,center.x+side*w,.08,z).scale.y=.48;if(Math.floor(z)%4===0){const reed=cone(g,.055,.48,0x587842,center.x-side*w*.92,.21,z+.35,5);reed.rotation.z=side*.18;}}
     // Wooden bridge, low fences, and a path through the forest.
     for(let i=0;i<26;i++)box(g,.34,.13,1.82,0xb09969,-23.1+i*.34,.21,12);
     for(const z of [11.18,12.82]){box(g,8.9,.1,.1,C.wood,-18.7,.78,z);for(let x=-23;x<-14.7;x+=1.25)box(g,.12,.9,.12,C.wood,x,.52,z);}
@@ -415,7 +424,9 @@ export class World{
     for(let i=0;i<65;i++){const x=-85+r()*150,z=-48-r()*30,height=9+r()*17;const hill=rock(g,1,0x607d77,x,height*.31,z);hill.scale.set(7+r()*9,height*.65,7+r()*8);const peak=cone(g,4+r()*4,height*.65,0x80928a,x,height*.7,z,7);peak.rotation.y=r()*6;if(height>21)cone(g,1.8,height*.14,0xdce4d7,x,height*1.04,z,7);}
     for(let i=0;i<38;i++){const x=i%2?-73-r()*18:37+r()*20,z=-38+r()*82,height=2+r()*5;const hill=rock(g,1,0x6b8d58,x,height*.24,z);hill.scale.set(7+r()*7,height*.5,7+r()*9);for(let j=0;j<3;j++)tree(g,x+(r()-.5)*9,z+(r()-.5)*9,.6+r()*.8,r(),r);}
     this.scenery.add(merged(g));
-    this.riverFlow=new THREE.Group();for(let i=0;i<58;i++){const foam=box(this.riverFlow,.18+r()*.34,.018,.45+r()*.7,0xbde4d7,0,.012,0);foam.material=new THREE.MeshBasicMaterial({color:0xbde4d7,transparent:true,opacity:.45});foam.userData.phase=i/58;foam.userData.lane=(r()-.5)*2.1;foam.castShadow=false;}this.scene.add(this.riverFlow);
+    // Supplied tree variants also populate the permanent forest outside playable land.
+    this.wildForest=new THREE.Group();for(let i=0;i<46;i++){const a=i/46*Math.PI*2,rad=19+r()*14,x=Math.cos(a)*rad-3,z=Math.sin(a)*rad;if(landContains(LAND_REGIONS,x,z)||Math.abs(x-riverPoint(z).x)<riverWidth(z)/2+1.8||z>9&&Math.abs(x)<3)continue;tree(this.wildForest,x,z,.48+r()*.34,i%4,r,true);}this.scene.add(this.wildForest);
+    this.riverFlow=new THREE.Group();for(let i=0;i<88;i++){const foam=box(this.riverFlow,.18+r()*.42,.014,.38+r()*.92,0xbde4d7,0,.012,0);foam.material=new THREE.MeshBasicMaterial({color:i%5?0xc8ece1:0xffffff,transparent:true,opacity:.28+r()*.28,depthWrite:false});foam.userData.phase=i/88;foam.userData.lane=(r()-.5)*.76;foam.userData.speed=.018+r()*.012;foam.userData.baseScale=.65+r()*.7;foam.castShadow=false;}this.scene.add(this.riverFlow);
 
     const clouds=new THREE.Group();for(let i=0;i<44;i++){const angle=i/44*Math.PI*2,cloud=new THREE.Group(),x=-12+Math.cos(angle)*(94+r()*12),z=Math.sin(angle)*(78+r()*12);for(let j=0;j<7;j++){const puff=mesh(cloud,new THREE.SphereGeometry(1,12,8),0xe8efeb,x+(j-3)*2.7,9+r()*4,z+(r()-.5)*5);puff.scale.set(4+r()*3,1.6+r()*1.8,3+r()*3);}const m=merged(cloud);m.material.dispose();m.material=new THREE.MeshBasicMaterial({color:0xe5eeea,transparent:true,opacity:.65,depthWrite:false});m.castShadow=false;m.receiveShadow=false;m.userData.phase=i;clouds.add(m);}this.clouds=clouds;this.scene.add(clouds);
 
@@ -429,8 +440,9 @@ export class World{
       for(const z of [r.z1,r.z2])box(g,w,.08,.09,available?0xcde69c:0xab9670,cx,.04,z);
       for(const x of [r.x1,r.x2])box(g,.09,.08,d,available?0xcde69c:0xab9670,x,.04,cz);
       if(available){for(let x=r.x1+1;x<r.x2;x++)box(g,.018,.013,d,0x9cbb6f,x,.005,cz);for(let z=r.z1+1;z<r.z2;z++)box(g,w,.013,.018,0x9cbb6f,cx,.005,z);}
-      else for(let i=0;i<12;i++)tree(g,r.x1+1+rand()*(w-2),r.z1+1+rand()*(d-2),.5+rand()*.2,.2,rand);
+      else for(let i=0;i<7;i++)tree(g,r.x1+1+rand()*(w-2),r.z1+1+rand()*(d-2),.5+rand()*.2,.2,rand);
       this.landGroup.add(merged(g));
+      if(!available)for(let i=0;i<7;i++)tree(this.landGroup,r.x1+1+rand()*(w-2),r.z1+1+rand()*(d-2),.45+rand()*.25,i%4,rand,true);
       const canvas=document.createElement('canvas');canvas.width=640;canvas.height=128;const ctx=canvas.getContext('2d');ctx.fillStyle='#112b21ed';ctx.fillRect(0,0,640,128);ctx.textAlign='center';ctx.fillStyle=available?'#e4f7b4':'#f8d39c';ctx.font='bold 33px system-ui';ctx.fillText(r.name,320,49);ctx.font='26px system-ui';ctx.fillText(available?(battle?'OPEN LAND':'OPEN · BUILD HERE'):'LOCKED · TOWN HALL '+r.unlock,320,94);
       const label=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(canvas),depthTest:false}));label.position.set(cx,1.2,r.z1+1);label.scale.set(7,1.4,1);this.landGroup.add(label);
     }
@@ -602,7 +614,7 @@ export class World{
     for(const group of [this.heroVisitors])for(const model of group?.children||[]){if(model.userData.resting){animateUnit(model,t,false);continue;}model.userData.homePosition??=model.position.clone();const h=model.userData.homePosition,phase=model.userData.phase||h.x,a=t*.55+phase;model.position.set(h.x+Math.cos(a)*.3,.03+animateUnit(model,t,true,phase),h.z+Math.sin(a)*.3);model.rotation.y=-a;}
     for(const model of this.campArmy?.children||[]){const path=model.userData.path,moving=!!path?.length,turn=advanceRoute(model.position,path,dt*1.5);if(turn!==null)model.rotation.y=turn;const bridge=model.position.x<-14.5&&model.position.x>-23.5&&Math.abs(model.position.z-12)<1;model.position.y=(bridge?.3:.03)+animateUnit(model,t,moving,model.userData.phase);}
     this.scene.traverse(o=>{if(!o.userData.banner&&!o.userData.flagCloth)return;const p=o.geometry?.attributes.position;if(!p)return;const width=o.geometry.parameters.width;for(let i=0;i<p.count;i++){const u=(p.getX(i)+width/2)/width;p.setZ(i,u*(Math.sin(u*8-t*4)*.09+Math.sin(u*15-t*6)*.025));}p.needsUpdate=true;});
-    for(const cloud of this.clouds.children){cloud.position.x=Math.sin(t*.045+cloud.userData.phase)*2;cloud.position.z=Math.cos(t*.035+cloud.userData.phase)*1.3;}for(const foam of this.riverFlow?.children||[]){const z=-29+((foam.userData.phase+t*.013)%1)*59;foam.position.set(-18+Math.sin(z*.18)*2.2+foam.userData.lane,.015,z);foam.rotation.y=-Math.cos(z*.18)*.36;}
+    for(const cloud of this.clouds.children){cloud.position.x=Math.sin(t*.045+cloud.userData.phase)*2;cloud.position.z=Math.cos(t*.035+cloud.userData.phase)*1.3;}for(const foam of this.riverFlow?.children||[]){const progress=(foam.userData.phase+t*foam.userData.speed)%1,z=-66+progress*132,center=riverPoint(z),slope=(riverPoint(z+.1).x-riverPoint(z-.1).x)/.2,n=Math.hypot(1,slope),lane=foam.userData.lane*riverWidth(z)/2;foam.position.set(center.x+lane/n,.018+Math.sin(t*2.5+foam.userData.phase*30)*.012,z-slope*lane/n);foam.rotation.y=-Math.atan(slope);foam.scale.set(foam.userData.baseScale*(.75+Math.sin(progress*Math.PI)*.25),1,1);foam.material.opacity=.16+Math.sin(progress*Math.PI)*.34;}
     for(let i=this.effects.length-1;i>=0;i--){const e=this.effects[i];e.age+=dt;const u=e.age/e.life;if(e.kind==='damage'){e.mesh.position.y+=dt*.9;e.mesh.material.opacity=Math.max(0,1-u);}else if(e.kind==='projectile'){e.mesh.position.lerpVectors(e.from,e.to,u);e.mesh.position.y+=Math.sin(u*Math.PI)*.6;}else if(e.kind==='particle'){e.mesh.position.x+=e.vx*dt;e.mesh.position.y+=e.vy*dt;e.mesh.position.z+=e.vz*dt;e.vy-=8*dt;e.mesh.rotation.x+=dt*4;e.mesh.scale.setScalar(Math.max(.05,1-u));}else if(e.kind==='ring'){e.mesh.material.opacity=.5*(1-u);e.mesh.scale.setScalar(.6+u*.5);}else if(e.kind==='flash')e.mesh.visible=Math.floor(t*30)%2===0;
       if(e.age>=e.life){this.particles.remove(e.mesh);if(e.kind==='damage')e.mesh.material.map.dispose();else e.mesh.geometry.dispose();if(![...materials.values()].includes(e.mesh.material))e.mesh.material.dispose();this.effects.splice(i,1);}}
     if(this.selection.visible)this.selection.children[1].material.opacity=.20+Math.sin(t*3)*.08;

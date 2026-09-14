@@ -1,4 +1,4 @@
-import {escapeHtml as e} from './features.js?v=17.1.0';
+import {escapeHtml as e} from './features.js?v=17.2.0';
 export class SocialUI{
  constructor(f){f.profile=()=>this.show().catch(err=>f.b.toast(err.message,true));this.f=f;this.api=f.api;document.addEventListener('click',event=>{const b=event.target.closest('[data-social]');if(b&&!b.disabled)this.handle(b).catch(err=>f.b.toast(err.message,true));});document.addEventListener('submit',event=>{if(event.target.id==='social-search'){event.preventDefault();this.show(event.target.elements.q.value).catch(err=>f.b.toast(err.message,true));}});}
  async show(q=''){

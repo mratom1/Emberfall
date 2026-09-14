@@ -23,12 +23,12 @@ export const SIEGE={
  catapult:{name:'Siege Catapult',icon:'target',desc:'Long-range shells damage clusters of buildings.',hp:1500,damage:165,speed:.9,range:8,rate:2.2,color:0x927c56,splash:2.4,cost:1000,time:20,unlock:6}
 };
 export const HOME_HEROES=['king','queen','prince','warden','champion',...Object.keys(EXTRA_HEROES)];
-export const BUILDER_TYPES=['mine','well','storage','camp','barracks','tower','cannon','mortar','tesla','air','wall','bomb','laboratory'];
+export const BUILDER_TYPES=['mine','well','storage','elixirStorage','camp','barracks','tower','cannon','mortar','tesla','air','wall','bomb','laboratory'];
 export const SEASON_TASKS=[{id:'victory',title:'Win 3 battles',stat:'wins',goal:3,xp:150},{id:'build',title:'Construct 3 buildings',stat:'built',goal:3,xp:120},{id:'training',title:'Train 15 troops',stat:'trained',goal:15,xp:100},{id:'upgrades',title:'Complete 3 upgrades',stat:'upgraded',goal:3,xp:130}];
 const month=now=>new Date(now).toISOString().slice(0,7),day=now=>new Date(now).toISOString().slice(0,10);
 const error=message=>({error:message});
 export function builderState(now){
- return {realm:'builder',version:3,gold:5000,elixir:4500,dark:0,gems:0,glory:0,builders:1,lastTick:now,army:{guardian:12,ranger:8,giant:2},queue:[],research:{guardian:2,ranger:2},researchQueue:[],heroes:{machine:{level:1,recoverAt:0}},spells:{},spellQueue:[],obstacles:M.seedObstacles().slice(0,10),nextObstacleAt:now+1800000,cleared:{},claimed:[],stats:{built:0,trained:0,wins:0,upgraded:0},settings:{},buildings:[{id:'bh',type:'hall',x:0,z:0,level:1},{id:'bb',type:'barracks',x:5,z:0,level:1},{id:'bm',type:'mine',x:-5,z:1,level:1,stored:100},{id:'bw',type:'well',x:0,z:5,level:1,stored:100},{id:'bs',type:'storage',x:-4,z:-5,level:1},{id:'bc',type:'camp',x:5,z:5,level:1},{id:'bt',type:'tower',x:4,z:-5,level:1},{id:'bn',type:'cannon',x:-5,z:5,level:1}]};
+ return {realm:'builder',version:3,gold:5000,elixir:4500,dark:0,gems:0,glory:0,builders:1,lastTick:now,army:{guardian:12,ranger:8,giant:2},queue:[],research:{guardian:2,ranger:2},researchQueue:[],heroes:{machine:{level:1,recoverAt:0}},spells:{},spellQueue:[],obstacles:M.seedObstacles().slice(0,10),nextObstacleAt:now+1800000,cleared:{},claimed:[],stats:{built:0,trained:0,wins:0,upgraded:0},settings:{},buildings:[{id:'bh',type:'hall',x:0,z:0,level:1},{id:'bb',type:'barracks',x:5,z:0,level:1},{id:'bm',type:'mine',x:-5,z:1,level:1,stored:100},{id:'bw',type:'well',x:0,z:5,level:1,stored:100},{id:'bs',type:'storage',x:-4,z:-5,level:1},{id:'bes',type:'elixirStorage',x:-8,z:-5,level:1},{id:'bc',type:'camp',x:5,z:5,level:1},{id:'bt',type:'tower',x:4,z:-5,level:1},{id:'bn',type:'cannon',x:-5,z:5,level:1}]};
 }
 export function ensure(s,now=Date.now()){
  if(s.realm)return s;

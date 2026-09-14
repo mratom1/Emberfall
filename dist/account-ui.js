@@ -1,5 +1,5 @@
-import {escapeHtml as e} from './features.js?v=16.0.0';
-import {nativeApp, openExternal} from './native.js?v=16.0.0';
+import {escapeHtml as e} from './features.js?v=17.0.0';
+import {nativeApp, openExternal} from './native.js?v=17.0.0';
 const names = {google:'Google', facebook:'Facebook'};
 export class AccountUI {
   constructor(features) {

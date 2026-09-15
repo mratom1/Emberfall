@@ -27,7 +27,7 @@ jobs:
           cp apps/android/app/build/outputs/bundle/release/*.aab release/android/Emberfall-5.0.0-unsigned.aab
           cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" release/android/apksigner.jar
           printf '%s\n' "$GITHUB_SHA" > release/android/SOURCE_COMMIT.txt
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with: {name: Emberfall-Android-Unsigned, path: release/android, retention-days: 30, if-no-files-found: error}
   windows:
     runs-on: windows-2022
@@ -42,7 +42,7 @@ jobs:
         run: dotnet publish apps/windows/Emberfall.csproj -c Release -r win-x64 --self-contained true -o release/windows
       - name: Record source version
         run: Set-Content -Path release/windows/SOURCE_COMMIT.txt -Value $env:GITHUB_SHA
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with: {name: Emberfall-Windows-x64, path: release/windows, retention-days: 30, if-no-files-found: error}
   ios:
     runs-on: macos-15
@@ -67,5 +67,5 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent ../ios-simulator/Build/Products/Release-iphonesimulator/Emberfall.app Emberfall-Simulator.zip
           printf '%s\n' "$GITHUB_SHA" > SOURCE_COMMIT.txt
           printf '%s\n' 'Device IPA is unsigned. Select your Apple signing team in the included Xcode project to install on an iPhone. Simulator app does not require signing.' > READ-ME.txt
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with: {name: Emberfall-iOS-Builds, path: release/ios, retention-days: 30, if-no-files-found: error}
